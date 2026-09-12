@@ -144,7 +144,10 @@ const additionalChildren = classTargets.flatMap((target) => {
   return Array.from({ length: target.count - existingCount }, (_, index): Child => {
     const identityIndex = generatedChildIndex++
     const familyName = familyNames[identityIndex % familyNames.length]
-    const givenName = givenNames[Math.floor(identityIndex / familyNames.length)]
+    const givenName =
+      givenNames[
+        (identityIndex + Math.floor(identityIndex / familyNames.length)) % givenNames.length
+      ]
     const month = 4 + ((identityIndex * 2) % 9)
     const day = 2 + ((identityIndex * 5) % 25)
     return {

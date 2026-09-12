@@ -4,12 +4,13 @@ import { chromium } from '@playwright/test'
 
 const baseURL = process.env.SCREENSHOT_BASE_URL ?? 'http://127.0.0.1:3100'
 const outputDirectory = resolve('docs/screenshots')
-const viewport = { width: 390, height: 844 }
+const parentViewport = { width: 390, height: 844 }
+const teacherViewport = { width: 1440, height: 900 }
 
 await mkdir(outputDirectory, { recursive: true })
 
 const browser = await chromium.launch()
-let context = await browser.newContext({ viewport, deviceScaleFactor: 1 })
+let context = await browser.newContext({ viewport: parentViewport, deviceScaleFactor: 1 })
 let page = await context.newPage()
 
 async function capture(name) {
@@ -32,7 +33,7 @@ try {
   await capture('parent-notice-detail')
 
   await context.close()
-  context = await browser.newContext({ viewport, deviceScaleFactor: 1 })
+  context = await browser.newContext({ viewport: teacherViewport, deviceScaleFactor: 1 })
   await context.addCookies([
     {
       name: 'nursery-development-role',
