@@ -22,3 +22,27 @@ export async function clearSkipRole() {
   ;(await cookies()).delete(skipRoleCookie)
   return skipAuthentication.getUser()
 }
+
+export interface SignInState {
+  error?: string
+}
+
+export async function signInWithCredentials(
+  _previousState: SignInState,
+  formData: FormData,
+): Promise<SignInState> {
+  if (getRuntimeConfig().authMode !== 'authjs') return { error: 'ログインできませんでした。' }
+  try {
+    const { signIn } = await import('@/auth')
+    await signIn('credentials', {
+      email: formData.get('email'),
+      password: formData.get('password'),
+      redirectTo: '/',
+    })
+    return {}
+  } catch (error) {
+    const { AuthError } = await import('next-auth')
+    if (error instanceof AuthError) return { error: 'IDまたはパスワードが正しくありません。' }
+    throw error
+  }
+}

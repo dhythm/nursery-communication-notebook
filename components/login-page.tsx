@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useActionState, useState } from 'react'
 import Image from 'next/image'
 import { HeartHandshake, Lock, Mail, School } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
@@ -11,6 +11,8 @@ import { useStore } from '@/lib/store'
 import type { Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { facilityPagePath } from '@/lib/facility-path'
+import { signInWithCredentials } from '@/lib/auth/actions'
+import type { AuthMode } from '@/lib/runtime-config'
 
 const demoAccounts: Record<Role, { email: string; password: string; label: string; hint: string }> =
   {
@@ -28,13 +30,14 @@ const demoAccounts: Record<Role, { email: string; password: string; label: strin
     },
   }
 
-export default function LoginPage() {
+export default function LoginPage({ authMode }: { authMode: AuthMode }) {
   const router = useRouter()
   const { login } = useStore()
   const [role, setRole] = useState<Role>('parent')
   const account = demoAccounts[role]
-  const [email, setEmail] = useState(account.email)
-  const [password, setPassword] = useState(account.password)
+  const [email, setEmail] = useState(authMode === 'skip' ? account.email : '')
+  const [password, setPassword] = useState(authMode === 'skip' ? account.password : '')
+  const [signInState, signInAction, isPending] = useActionState(signInWithCredentials, {})
 
   function switchRole(next: Role) {
     setRole(next)
@@ -78,26 +81,34 @@ export default function LoginPage() {
           <div className="mb-6 text-center lg:text-left">
             <h2 className="font-display text-2xl font-bold">ログイン</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              ご利用の立場を選んでログインしてください
+              {authMode === 'skip'
+                ? 'ご利用の立場を選んでログインしてください'
+                : 'メールアドレスとパスワードを入力してください'}
             </p>
           </div>
 
-          <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1.5">
-            <RoleTab
-              active={role === 'parent'}
-              onClick={() => switchRole('parent')}
-              icon={<HeartHandshake className="size-4" />}
-              label="保護者"
-            />
-            <RoleTab
-              active={role === 'teacher'}
-              onClick={() => switchRole('teacher')}
-              icon={<School className="size-4" />}
-              label="保育士"
-            />
-          </div>
+          {authMode === 'skip' && (
+            <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1.5">
+              <RoleTab
+                active={role === 'parent'}
+                onClick={() => switchRole('parent')}
+                icon={<HeartHandshake className="size-4" />}
+                label="保護者"
+              />
+              <RoleTab
+                active={role === 'teacher'}
+                onClick={() => switchRole('teacher')}
+                icon={<School className="size-4" />}
+                label="保育士"
+              />
+            </div>
+          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            action={authMode === 'authjs' ? signInAction : undefined}
+            onSubmit={authMode === 'skip' ? handleSubmit : undefined}
+            className="space-y-4"
+          >
             <div className="space-y-1.5">
               <label htmlFor="email" className="text-sm font-semibold">
                 メールアドレス
@@ -106,6 +117,7 @@ export default function LoginPage() {
                 <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -124,6 +136,7 @@ export default function LoginPage() {
                 <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -134,18 +147,30 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button type="submit" className="h-12 w-full rounded-2xl text-base font-bold">
-              {account.label}
+            {signInState.error && (
+              <p role="alert" className="text-sm font-semibold text-destructive">
+                {signInState.error}
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="h-12 w-full rounded-2xl text-base font-bold"
+            >
+              {authMode === 'skip' ? account.label : isPending ? 'ログイン中…' : 'ログイン'}
             </Button>
           </form>
 
-          <div className="mt-5 rounded-2xl border border-dashed border-border bg-muted/50 p-4 text-sm">
-            <p className="font-semibold text-foreground">デモアカウント</p>
-            <p className="mt-1 text-muted-foreground">{account.hint}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              入力済みのままログインを押すとお試しいただけます。
-            </p>
-          </div>
+          {authMode === 'skip' && (
+            <div className="mt-5 rounded-2xl border border-dashed border-border bg-muted/50 p-4 text-sm">
+              <p className="font-semibold text-foreground">デモアカウント</p>
+              <p className="mt-1 text-muted-foreground">{account.hint}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                入力済みのままログインを押すとお試しいただけます。
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </main>

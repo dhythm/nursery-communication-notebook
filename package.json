@@ -31,6 +31,7 @@
     "db:setup:agent": "node --import tsx scripts/environment.ts agent setup",
     "db:check:agent": "node --import tsx scripts/environment.ts agent check",
     "db:setup:local": "node --import tsx scripts/environment.ts local setup",
+    "auth:set-password": "node --import tsx scripts/set-password.ts",
     "data:backup": "node --import tsx scripts/data-maintenance.ts backup",
     "data:restore": "node --import tsx scripts/data-maintenance.ts restore",
     "data:retention": "node --import tsx scripts/data-maintenance.ts retention"
@@ -47,6 +48,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
     "next": "16.3.3",
+    "next-auth": "5.0.0-beta.32",
     "pg": "^8.23.0",
     "react": "^19",
     "react-dom": "^19",

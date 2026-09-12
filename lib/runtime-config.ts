@@ -1,6 +1,6 @@
 export interface RuntimeConfig {
   appEnv: 'development' | 'test' | 'production'
-  authMode: 'skip' | 'clerk'
+  authMode: AuthMode
   databaseProvider: 'postgres' | 'pglite'
   databaseUrl?: string
   pgliteDataDir: string
@@ -11,6 +11,8 @@ export interface RuntimeConfig {
   s3Endpoint?: string
 }
 
+export type AuthMode = 'skip' | 'clerk' | 'authjs'
+
 /** Server configuration. No credentials or environment values are sent to the browser. */
 export function getRuntimeConfig(
   environment: Record<string, string | undefined> = process.env,
@@ -20,10 +22,10 @@ export function getRuntimeConfig(
     throw new Error('APP_ENV must be development, test, or production')
   }
   const authMode = environment.AUTH_MODE
-  if (authMode !== 'skip' && authMode !== 'clerk') {
-    throw new Error('AUTH_MODE must be skip or clerk')
-  }
   const production = appEnv === 'production' || environment.VERCEL_ENV === 'production'
+  if (authMode !== 'skip' && authMode !== 'clerk' && authMode !== 'authjs') {
+    throw new Error('AUTH_MODE must be skip, clerk, or authjs')
+  }
   if (production && authMode === 'skip') {
     throw new Error('Authentication skip is forbidden in production')
   }
@@ -34,6 +36,12 @@ export function getRuntimeConfig(
     throw new Error(
       'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are required for Clerk authentication',
     )
+  }
+  if (authMode === 'authjs' && !environment.AUTH_SECRET) {
+    throw new Error('Auth.js requires AUTH_SECRET')
+  }
+  if (authMode === 'authjs' && production && environment.AUTH_SECRET!.length < 32) {
+    throw new Error('AUTH_SECRET must be at least 32 characters in production')
   }
   const databaseProvider = environment.DATABASE_PROVIDER ?? 'postgres'
   if (databaseProvider !== 'postgres' && databaseProvider !== 'pglite') {

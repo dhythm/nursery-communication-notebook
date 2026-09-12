@@ -79,6 +79,26 @@ describe('runtime configuration', () => {
     })
   })
 
+  it('supports Auth.js credentials when its secret is configured', () => {
+    expect(
+      getRuntimeConfig({ ...development, AUTH_MODE: 'authjs', AUTH_SECRET: 'test-secret' }),
+    ).toMatchObject({ authMode: 'authjs' })
+    expect(() => getRuntimeConfig({ ...development, AUTH_MODE: 'authjs' })).toThrow(/AUTH_SECRET/)
+    expect(() =>
+      getRuntimeConfig({
+        ...development,
+        APP_ENV: 'production',
+        AUTH_MODE: 'authjs',
+        AUTH_SECRET: 'too-short',
+        DATABASE_PROVIDER: 'postgres',
+        DATABASE_URL: 'postgresql://nursery:secret@db.example.com/nursery',
+        FILE_STORAGE_PROVIDER: 's3',
+        S3_BUCKET: 'nursery-production-files',
+        S3_REGION: 'ap-northeast-1',
+      }),
+    ).toThrow(/32 characters/)
+  })
+
   it('rejects invalid PostgreSQL URLs without exposing the secret', () => {
     expect(() =>
       getRuntimeConfig({
