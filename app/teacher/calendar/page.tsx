@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Pencil, Plus, XCircle } from 'lucide-react'
 import { PageTitle } from '@/components/teacher/page-title'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,11 @@ function toKey(y: number, m: number, d: number) {
 }
 
 export default function TeacherCalendar() {
-  const { currentUser, calendarEvents, addEvent } = useStore()
+  const { currentUser, children, calendarEvents, addEvent, updateEvent, cancelEvent } = useStore()
+  const classes = useMemo(
+    () => Array.from(new Map(children.map((child) => [child.classId, child.className])).entries()),
+    [children],
+  )
   const [today] = useState(() => todayInTimeZone())
   const [view, setView] = useState(() => {
     const { year, month } = calendarDateParts(today)
@@ -30,6 +34,7 @@ export default function TeacherCalendar() {
   })
   const [selectedDate, setSelectedDate] = useState(today)
   const [addingDate, setAddingDate] = useState<string | null>(null)
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
 
   const events = useMemo(
     () => calendarEvents.filter((e) => e.facilityId === currentUser?.facilityId),
@@ -193,6 +198,24 @@ export default function TeacherCalendar() {
                     </p>
                   )}
                   {e.memo && <p className="mt-1 text-xs text-muted-foreground">{e.memo}</p>}
+                  <div className="mt-2 flex justify-end gap-1">
+                    <button
+                      type="button"
+                      aria-label="予定を編集"
+                      className="rounded-full p-1.5 hover:bg-background"
+                      onClick={() => setEditingEvent(e)}
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="予定を取消"
+                      className="rounded-full p-1.5 text-destructive hover:bg-background"
+                      onClick={() => void cancelEvent(e.id, e.version ?? 1)}
+                    >
+                      <XCircle className="size-4" />
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (
@@ -215,7 +238,22 @@ export default function TeacherCalendar() {
           open
           onClose={() => setAddingDate(null)}
           defaultDate={addingDate}
+          classes={classes}
           onAdd={(e) => addEvent({ ...e, facilityId: currentUser?.facilityId ?? 'f1' })}
+        />
+      )}
+      {editingEvent && (
+        <AddEventModal
+          key={editingEvent.id}
+          open
+          onClose={() => setEditingEvent(null)}
+          defaultDate={editingEvent.date}
+          event={editingEvent}
+          classes={classes}
+          onAdd={async (payload) => {
+            await updateEvent(editingEvent.id, editingEvent.version ?? 1, payload)
+            setEditingEvent(null)
+          }}
         />
       )}
     </div>
@@ -227,22 +265,27 @@ function AddEventModal({
   onClose,
   defaultDate,
   onAdd,
+  event,
+  classes,
 }: {
   open: boolean
   onClose: () => void
   defaultDate: string
   onAdd: (e: Omit<CalendarEvent, 'id' | 'facilityId'>) => Promise<void>
+  event?: CalendarEvent
+  classes: [string, string][]
 }) {
-  const [title, setTitle] = useState('')
-  const [type, setType] = useState<EventType>('行事')
-  const [date, setDate] = useState(defaultDate)
-  const [time, setTime] = useState('')
-  const [memo, setMemo] = useState('')
+  const [title, setTitle] = useState(event?.title ?? '')
+  const [type, setType] = useState<EventType>(event?.type ?? '行事')
+  const [date, setDate] = useState(event?.date ?? defaultDate)
+  const [time, setTime] = useState(event?.time ?? '')
+  const [memo, setMemo] = useState(event?.memo ?? '')
+  const [targetClassId, setTargetClassId] = useState(event?.targetClassId ?? '')
 
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function submit() {
+  async function submit(status: 'draft' | 'published') {
     if (isSaving) return
     setIsSaving(true)
     setError(null)
@@ -253,6 +296,8 @@ function AddEventModal({
         date: date || defaultDate,
         time: time || undefined,
         memo: memo || undefined,
+        targetClassId: targetClassId || undefined,
+        status,
       })
       setTitle('')
       setType('行事')
@@ -270,7 +315,7 @@ function AddEventModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="予定を追加"
+      title={event ? '予定を編集' : '予定を追加'}
       description="カレンダーに新しい予定を登録します"
       footer={
         <div className="flex gap-2">
@@ -278,11 +323,19 @@ function AddEventModal({
             キャンセル
           </Button>
           <Button
-            className="h-11 flex-[2] rounded-2xl font-bold"
-            onClick={submit}
+            variant="outline"
+            className="h-11 flex-1 rounded-2xl"
+            onClick={() => void submit('draft')}
             disabled={isSaving}
           >
-            予定を追加
+            下書き保存
+          </Button>
+          <Button
+            className="h-11 flex-[2] rounded-2xl font-bold"
+            onClick={() => void submit('published')}
+            disabled={isSaving}
+          >
+            {event ? '変更を保存' : '予定を追加'}
           </Button>
         </div>
       }
@@ -293,6 +346,21 @@ function AddEventModal({
             {error}
           </p>
         )}
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-semibold">公開先</span>
+          <select
+            className="h-10 w-full rounded-xl border bg-background px-3"
+            value={targetClassId}
+            onChange={(event) => setTargetClassId(event.target.value)}
+          >
+            <option value="">全園児</option>
+            {classes.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold">予定名</span>
           <Input

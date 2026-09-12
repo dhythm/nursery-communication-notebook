@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
 import {
   Bell,
   ChevronRight,
@@ -20,11 +20,16 @@ import { useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
 
 export default function ParentSettings() {
-  const { currentUser, facilityName, logout } = useStore()
+  const {
+    currentUser,
+    facilityName,
+    logout,
+    notificationPreferences,
+    updateNotificationPreference,
+  } = useStore()
   const { myChildren } = useParent()
-  const [notices, setNotices] = useState(true)
-  const [messages, setMessages] = useState(true)
-  const [notebook, setNotebook] = useState(false)
+  const preference = (category: 'notice' | 'message' | 'notebook') =>
+    notificationPreferences.find((item) => item.category === category)?.enabled ?? false
 
   if (!currentUser) return null
 
@@ -78,20 +83,20 @@ export default function ParentSettings() {
           <ToggleRow
             icon={<Bell className="size-4" />}
             label="お知らせの通知"
-            checked={notices}
-            onChange={setNotices}
+            checked={preference('notice')}
+            onChange={(enabled) => void updateNotificationPreference('notice', enabled)}
           />
           <ToggleRow
             icon={<MessageCircle className="size-4" />}
             label="メッセージの通知"
-            checked={messages}
-            onChange={setMessages}
+            checked={preference('message')}
+            onChange={(enabled) => void updateNotificationPreference('message', enabled)}
           />
           <ToggleRow
             icon={<FileText className="size-4" />}
             label="連絡帳の更新通知"
-            checked={notebook}
-            onChange={setNotebook}
+            checked={preference('notebook')}
+            onChange={(enabled) => void updateNotificationPreference('notebook', enabled)}
           />
         </Card>
       </section>
@@ -99,9 +104,21 @@ export default function ParentSettings() {
       <section className="space-y-2">
         <h2 className="px-1 font-display text-sm font-bold text-muted-foreground">その他</h2>
         <Card className="divide-y divide-border p-0">
-          <LinkRow icon={<ShieldCheck className="size-4" />} label="プライバシーとセキュリティ" />
-          <LinkRow icon={<HelpCircle className="size-4" />} label="ヘルプ・お問い合わせ" />
-          <LinkRow icon={<FileText className="size-4" />} label="利用規約" />
+          <LinkRow
+            href="/parent/settings/privacy"
+            icon={<ShieldCheck className="size-4" />}
+            label="プライバシーとセキュリティ"
+          />
+          <LinkRow
+            href="/parent/settings/help"
+            icon={<HelpCircle className="size-4" />}
+            label="ヘルプ・お問い合わせ"
+          />
+          <LinkRow
+            href="/parent/settings/terms"
+            icon={<FileText className="size-4" />}
+            label="利用規約"
+          />
         </Card>
       </section>
 
@@ -139,15 +156,12 @@ function ToggleRow({
   )
 }
 
-function LinkRow({ icon, label }: { icon: React.ReactNode; label: string }) {
+function LinkRow({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50"
-    >
+    <Link href={href} className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50">
       <span className="text-primary">{icon}</span>
       <span className="flex-1 text-sm font-semibold">{label}</span>
       <ChevronRight className="size-4 text-muted-foreground" />
-    </button>
+    </Link>
   )
 }

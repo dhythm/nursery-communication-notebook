@@ -54,6 +54,7 @@ pnpm db:down        # コンテナー停止・削除（ボリュームは保持�
 | `DATABASE_PROVIDER` | `postgres` / `pglite`                                 |
 | `DATABASE_URL`      | PostgreSQL接続文字列。PGliteでは使用しない            |
 | `PGLITE_DATA_DIR`   | 既定 `.data/pglite`。`memory://` は単体テスト専用     |
+| `FILE_STORAGE_DIR`  | 既定 `.data/files`。認可付き資料・写真の保存先        |
 
 `.env.example` はDocker用、`.env.agent.example` はPGlite用の設定例です。
 `dev` / `dev:agent` は認証・DB種別を明示的に切り替えるので、既存の `.env.local` があってもDB種別が混ざりません。
@@ -71,19 +72,18 @@ Clerk・Neonの実装やキー設定はまだありません。本番認証を�
 
 画面 → TanStack Query → `/api/notebook` → repository → PostgreSQL / PGlite の順でアクセスします。
 
-- GETを利用者ごとに60秒キャッシュし、画面遷移で再利用します。
+- GETを利用者ごとに60秒キャッシュし、30秒ごとに相手の更新を確認します。
 - 保存はPOSTで実行し、成功後にキャッシュを無効化・再取得します。
 - 利用者切り替え・ログアウトでキャッシュを消去します。
 - 保存に失敗した場合は入力を保持してエラー表示します。
 - HTTPキャッシュは無効にし、認証付きデータはTanStack Queryのメモリ内だけでキャッシュします。
 
-連絡帳・メッセージ・お知らせ・資料情報・行事・園児情報はDBへ保存され、再読み込み後も保持されます。
-資料／写真は既存デモの情報・URLを保存する仕組みで、ファイルストレージへのアップロードは未実装です。
+連絡帳・メッセージ・お知らせ・資料・写真・行事・園児情報は保存され、再読み込み後も保持されます。資料と写真は実体を非公開ストレージへ保存し、所属園・クラス・園児の権限確認後に配信します。
 
 認証の交換境界は `lib/auth/provider.ts`、DBドライバーの交換境界は `lib/db/index.ts`、データ操作は `lib/repository.ts` に分離しています。
 将来Clerkの認証プロバイダーと本番用のユーザー・施設対応付けを追加し、NeonのPostgreSQL接続に置換できます。画面側はDBドライバーに依存しません。
 
-現在の `app_record` JSONBテーブルは開発デモ用の永続化です。本番ドメインの正規化テーブル・制約・認可設計は別途実装します。
+園、利用者、所属、クラス、園児、保護者紐づけ、職員担当、連絡帳、お知らせ、予定、通知、監査、ファイルは正規化テーブルで管理します。`app_record` は既存メッセージとの互換用に限定しています。
 共通SQLのマイグレーションは `lib/db/migrations.ts` でバージョン管理し、トランザクション内で適用します。seedは既存データを上書きしません。
 
 ## 検証コマンド
@@ -108,6 +108,7 @@ pnpm check:all
 LinuxのCIでは `pnpm exec playwright install --with-deps chromium` を使用します。
 E2Eは認証キー・Dockerなしで専用サーバーを `127.0.0.1:3100` に起動します。
 `/api/health` でも認証・DB接続・migrationを確認できます。
+運用監視では公開の `/api/health/live` と `/api/health/ready` を使用します。バックアップ、復元、保存期間の手順は [`docs/operations.md`](docs/operations.md) を参照してください。
 レポートは `pnpm exec playwright show-report` で開きます。
 ESLintはNext.jsプラグインの対応範囲に合わせ9系を使っています。
 初回起動・ビルドでは既存のGoogle Fonts設定によるネットワークアクセスが必要です。

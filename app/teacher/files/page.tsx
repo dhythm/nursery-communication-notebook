@@ -11,7 +11,6 @@ import { Modal } from '@/components/ui/modal'
 import { formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import type { SharedFile } from '@/lib/types'
-import { cn } from '@/lib/utils'
 
 const kindIcon = { PDF: FileText, 画像: ImageIcon, 文書: FileText }
 const kindColor: Record<SharedFile['kind'], string> = {
@@ -21,7 +20,7 @@ const kindColor: Record<SharedFile['kind'], string> = {
 }
 
 export default function TeacherFiles() {
-  const { currentUser, children, sharedFiles, addFile } = useStore()
+  const { currentUser, children, sharedFiles, uploadFile } = useStore()
   const [open, setOpen] = useState(false)
 
   const files = useMemo(
@@ -32,7 +31,7 @@ export default function TeacherFiles() {
     [sharedFiles, currentUser],
   )
   const classes = useMemo(
-    () => Array.from(new Set(children.map((c) => c.className.split('（')[0]))),
+    () => Array.from(new Map(children.map((child) => [child.classId, child.className])).entries()),
     [children],
   )
 
@@ -73,13 +72,13 @@ export default function TeacherFiles() {
                   <span className="text-xs text-muted-foreground">{file.uploadedBy}</span>
                 </div>
               </div>
-              <button
-                type="button"
+              <a
+                href={file.downloadUrl}
                 aria-label="ダウンロード"
                 className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <Download className="size-5" />
-              </button>
+              </a>
             </Card>
           )
         })}
@@ -89,12 +88,7 @@ export default function TeacherFiles() {
         open={open}
         onClose={() => setOpen(false)}
         classes={classes}
-        onUpload={(file) =>
-          addFile({
-            ...file,
-            facilityId: currentUser?.facilityId ?? 'f1',
-          })
-        }
+        onUpload={uploadFile}
       />
     </div>
   )
@@ -108,11 +102,11 @@ function UploadModal({
 }: {
   open: boolean
   onClose: () => void
-  classes: string[]
-  onUpload: (file: Omit<SharedFile, 'id' | 'facilityId' | 'date' | 'uploadedBy'>) => Promise<void>
+  classes: [string, string][]
+  onUpload: (file: File, displayName: string, targetClassId?: string) => Promise<string>
 }) {
+  const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState('')
-  const [kind, setKind] = useState<SharedFile['kind']>('PDF')
   const [target, setTarget] = useState<'all' | string>('all')
 
   const [isSaving, setIsSaving] = useState(false)
@@ -123,18 +117,10 @@ function UploadModal({
     setIsSaving(true)
     setError(null)
     try {
-      const finalName = name.trim() || '無題の資料'
-      const withExt =
-        kind === 'PDF' && !finalName.toLowerCase().endsWith('.pdf') ? `${finalName}.pdf` : finalName
-      await onUpload({
-        name: withExt,
-        kind,
-        sizeLabel: `${(Math.random() * 2 + 0.3).toFixed(1)} MB`,
-        sharedWith: target === 'all' ? 'all' : [],
-        className: target === 'all' ? undefined : target,
-      })
+      if (!file) return
+      await onUpload(file, name.trim() || file.name, target === 'all' ? undefined : target)
+      setFile(null)
       setName('')
-      setKind('PDF')
       setTarget('all')
       onClose()
     } catch (error) {
@@ -158,7 +144,7 @@ function UploadModal({
           <Button
             className="h-11 flex-[2] rounded-2xl font-bold"
             onClick={submit}
-            disabled={isSaving}
+            disabled={isSaving || !file}
           >
             アップロードして共有
           </Button>
@@ -171,11 +157,23 @@ function UploadModal({
             {error}
           </p>
         )}
-        <div className="flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border bg-muted/40 px-4 py-8 text-center">
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border bg-muted/40 px-4 py-8 text-center">
           <Upload className="size-8 text-muted-foreground" />
-          <p className="text-sm font-semibold">ファイルをドラッグ＆ドロップ</p>
-          <p className="text-xs text-muted-foreground">または下にファイル名を入力（デモ）</p>
-        </div>
+          <p className="text-sm font-semibold">{file ? file.name : 'ファイルを選択'}</p>
+          {file && (
+            <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
+          )}
+          <input
+            type="file"
+            className="sr-only"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.docx"
+            onChange={(event) => {
+              const selected = event.target.files?.[0] ?? null
+              setFile(selected)
+              if (selected && !name) setName(selected.name)
+            }}
+          />
+        </label>
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold">資料名</span>
@@ -187,32 +185,16 @@ function UploadModal({
         </label>
 
         <div>
-          <span className="mb-1.5 block text-sm font-semibold">種類</span>
-          <div className="grid grid-cols-3 gap-2">
-            {(['PDF', '画像', '文書'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setKind(k)}
-                className={cn(
-                  'rounded-2xl border py-2.5 text-sm font-semibold transition-colors',
-                  kind === k
-                    ? 'border-transparent bg-primary text-primary-foreground'
-                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
-                )}
-              >
-                {k}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
           <span className="mb-1.5 block text-sm font-semibold">共有先</span>
           <div className="flex flex-wrap gap-2">
             <TargetChip label="全園児" active={target === 'all'} onClick={() => setTarget('all')} />
-            {classes.map((c) => (
-              <TargetChip key={c} label={c} active={target === c} onClick={() => setTarget(c)} />
+            {classes.map(([classId, className]) => (
+              <TargetChip
+                key={classId}
+                label={className}
+                active={target === classId}
+                onClick={() => setTarget(classId)}
+              />
             ))}
           </div>
         </div>
@@ -234,12 +216,7 @@ function TargetChip({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        'rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors',
-        active
-          ? 'border-transparent bg-secondary text-secondary-foreground ring-2 ring-primary'
-          : 'border-border bg-background text-muted-foreground hover:bg-muted',
-      )}
+      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${active ? 'border-transparent bg-secondary text-secondary-foreground ring-2 ring-primary' : 'border-border bg-background text-muted-foreground hover:bg-muted'}`}
     >
       {label}
     </button>

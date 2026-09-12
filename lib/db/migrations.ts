@@ -179,6 +179,203 @@ const migrations = [
       ON CONFLICT (id) DO NOTHING;
     `,
   },
+  {
+    version: 5,
+    sql: `
+      CREATE TABLE notebook_entry (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL,
+        child_id text NOT NULL,
+        business_date date NOT NULL,
+        author_user_id text REFERENCES app_user(id) ON DELETE RESTRICT,
+        author_role text NOT NULL CHECK (author_role IN ('parent', 'teacher')),
+        author_name text NOT NULL,
+        mood text NOT NULL CHECK (mood IN ('genki', 'normal', 'tired', 'sick')),
+        temperature numeric(3,1) NOT NULL CHECK (temperature BETWEEN 34 AND 42),
+        meals text NOT NULL,
+        nap text NOT NULL,
+        toilet text NOT NULL,
+        note text NOT NULL DEFAULT '',
+        photo text,
+        status text NOT NULL CHECK (status IN ('draft', 'published', 'withdrawn')),
+        version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+        published_at timestamptz,
+        withdrawn_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        FOREIGN KEY (facility_id, child_id) REFERENCES child(facility_id, id) ON DELETE RESTRICT
+      );
+      CREATE UNIQUE INDEX notebook_entry_active_day
+        ON notebook_entry(child_id, business_date, author_role)
+        WHERE status IN ('draft', 'published');
+      CREATE INDEX notebook_entry_feed
+        ON notebook_entry(facility_id, child_id, business_date DESC, status);
+
+      CREATE TABLE notice (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL REFERENCES facility(id) ON DELETE RESTRICT,
+        title text NOT NULL,
+        body text NOT NULL,
+        category text NOT NULL CHECK (category IN ('重要', 'イベント', '保健', '給食', 'お願い')),
+        pinned boolean NOT NULL DEFAULT false,
+        requires_confirmation boolean NOT NULL DEFAULT false,
+        target_type text NOT NULL DEFAULT 'all' CHECK (target_type IN ('all', 'class')),
+        target_class_id text,
+        status text NOT NULL CHECK (status IN ('draft', 'published', 'withdrawn')),
+        version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+        created_by_user_id text REFERENCES app_user(id) ON DELETE RESTRICT,
+        updated_by_user_id text REFERENCES app_user(id) ON DELETE RESTRICT,
+        published_on date,
+        published_at timestamptz,
+        withdrawn_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        FOREIGN KEY (facility_id, target_class_id) REFERENCES nursery_class(facility_id, id) ON DELETE RESTRICT,
+        CHECK ((target_type = 'all' AND target_class_id IS NULL) OR
+               (target_type = 'class' AND target_class_id IS NOT NULL))
+      );
+      CREATE INDEX notice_feed ON notice(facility_id, published_on DESC, status);
+
+      CREATE TABLE notice_recipient (
+        notice_id text NOT NULL REFERENCES notice(id) ON DELETE CASCADE,
+        recipient_user_id text NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+        read_at timestamptz,
+        confirmed_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (notice_id, recipient_user_id)
+      );
+
+      CREATE TABLE calendar_event (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL REFERENCES facility(id) ON DELETE RESTRICT,
+        event_date date NOT NULL,
+        title text NOT NULL,
+        event_type text NOT NULL CHECK (event_type IN ('行事', '面談', '健診', '休園', '持ち物')),
+        event_time time,
+        memo text,
+        target_type text NOT NULL DEFAULT 'all' CHECK (target_type IN ('all', 'class')),
+        target_class_id text,
+        status text NOT NULL CHECK (status IN ('draft', 'published', 'cancelled')),
+        version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+        created_by_user_id text REFERENCES app_user(id) ON DELETE RESTRICT,
+        updated_by_user_id text REFERENCES app_user(id) ON DELETE RESTRICT,
+        published_at timestamptz,
+        cancelled_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        FOREIGN KEY (facility_id, target_class_id) REFERENCES nursery_class(facility_id, id) ON DELETE RESTRICT,
+        CHECK ((target_type = 'all' AND target_class_id IS NULL) OR
+               (target_type = 'class' AND target_class_id IS NOT NULL))
+      );
+      CREATE INDEX calendar_event_feed ON calendar_event(facility_id, event_date, status);
+
+      CREATE TABLE notification_preference (
+        facility_id text NOT NULL REFERENCES facility(id) ON DELETE RESTRICT,
+        user_id text NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+        category text NOT NULL CHECK (category IN ('notice', 'message', 'notebook')),
+        enabled boolean NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (facility_id, user_id, category)
+      );
+
+      CREATE TABLE app_notification (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL REFERENCES facility(id) ON DELETE RESTRICT,
+        recipient_user_id text NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+        category text NOT NULL CHECK (category IN ('notice', 'message', 'notebook')),
+        source_type text NOT NULL,
+        source_id text NOT NULL,
+        title text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        read_at timestamptz,
+        UNIQUE (recipient_user_id, category, source_type, source_id)
+      );
+      CREATE INDEX app_notification_inbox
+        ON app_notification(recipient_user_id, created_at DESC, read_at);
+
+      CREATE TABLE notification_outbox (
+        id text PRIMARY KEY,
+        notification_id text NOT NULL UNIQUE REFERENCES app_notification(id) ON DELETE CASCADE,
+        channel text NOT NULL DEFAULT 'in_app' CHECK (channel = 'in_app'),
+        status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+        attempt_count integer NOT NULL DEFAULT 0,
+        available_at timestamptz NOT NULL DEFAULT now(),
+        processed_at timestamptz,
+        last_error text,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE audit_log (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL REFERENCES facility(id) ON DELETE RESTRICT,
+        actor_user_id text REFERENCES app_user(id) ON DELETE RESTRICT,
+        actor_role text NOT NULL CHECK (actor_role IN ('parent', 'teacher', 'system')),
+        action text NOT NULL,
+        entity_type text NOT NULL,
+        entity_id text NOT NULL,
+        command_id text,
+        before_data jsonb,
+        after_data jsonb,
+        occurred_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX audit_command_once
+        ON audit_log(actor_user_id, command_id) WHERE command_id IS NOT NULL;
+      CREATE INDEX audit_entity_history ON audit_log(facility_id, entity_type, entity_id, occurred_at);
+
+      CREATE TABLE file_object (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL REFERENCES facility(id) ON DELETE RESTRICT,
+        storage_key text NOT NULL UNIQUE,
+        original_name text NOT NULL,
+        display_name text NOT NULL,
+        content_type text NOT NULL,
+        byte_size bigint NOT NULL CHECK (byte_size > 0 AND byte_size <= 10485760),
+        kind text NOT NULL CHECK (kind IN ('PDF', '画像', '文書')),
+        purpose text NOT NULL DEFAULT 'shared' CHECK (purpose IN ('shared', 'notebook')),
+        uploader_user_id text NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+        audience_type text NOT NULL CHECK (audience_type IN ('all', 'class', 'child')),
+        target_class_id text,
+        target_child_id text,
+        command_id text NOT NULL,
+        status text NOT NULL CHECK (status IN ('uploading', 'available', 'failed', 'deleted')),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        deleted_at timestamptz,
+        FOREIGN KEY (facility_id, target_class_id) REFERENCES nursery_class(facility_id, id) ON DELETE RESTRICT,
+        FOREIGN KEY (facility_id, target_child_id) REFERENCES child(facility_id, id) ON DELETE RESTRICT,
+        UNIQUE (uploader_user_id, command_id),
+        CHECK ((audience_type = 'all' AND target_class_id IS NULL AND target_child_id IS NULL) OR
+               (audience_type = 'class' AND target_class_id IS NOT NULL AND target_child_id IS NULL) OR
+               (audience_type = 'child' AND target_class_id IS NULL AND target_child_id IS NOT NULL))
+      );
+      CREATE INDEX file_object_listing ON file_object(facility_id, status, created_at DESC);
+
+      INSERT INTO notebook_entry
+        (id, facility_id, child_id, business_date, author_role, author_name, mood,
+         temperature, meals, nap, toilet, note, photo, status, published_at)
+      SELECT data->>'id', child.facility_id, data->>'childId', (data->>'date')::date,
+        data->>'author', data->>'authorName', data->>'mood', (data->>'temperature')::numeric,
+        data->>'meals', data->>'nap', data->>'toilet', COALESCE(data->>'note', ''),
+        data->>'photo', 'published', now()
+      FROM app_record JOIN child ON child.id = app_record.data->>'childId'
+      WHERE kind = 'notebookEntries'
+      ON CONFLICT (id) DO NOTHING;
+
+      INSERT INTO notice
+        (id, facility_id, title, body, category, pinned, status, published_on, published_at)
+      SELECT data->>'id', data->>'facilityId', data->>'title', data->>'body', data->>'category',
+        COALESCE((data->>'pinned')::boolean, false), 'published', (data->>'date')::date, now()
+      FROM app_record WHERE kind = 'notices'
+      ON CONFLICT (id) DO NOTHING;
+
+      INSERT INTO calendar_event
+        (id, facility_id, event_date, title, event_type, event_time, memo, status, published_at)
+      SELECT data->>'id', data->>'facilityId', (data->>'date')::date, data->>'title', data->>'type',
+        NULLIF(data->>'time', '')::time, data->>'memo', 'published', now()
+      FROM app_record WHERE kind = 'calendarEvents'
+      ON CONFLICT (id) DO NOTHING;
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

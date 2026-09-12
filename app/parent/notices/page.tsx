@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Pin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import type { Notice } from '@/lib/types'
@@ -26,8 +27,9 @@ const categoryColor: Record<Notice['category'], string> = {
 }
 
 export default function ParentNotices() {
-  const { notices } = useStore()
+  const { notices, markNoticeRead, confirmNotice } = useStore()
   const [filter, setFilter] = useState<(typeof categories)[number]>('すべて')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const list = useMemo(() => {
     const filtered = filter === 'すべて' ? notices : notices.filter((n) => n.category === filter)
@@ -86,6 +88,29 @@ export default function ParentNotices() {
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
               {notice.body}
             </p>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {notice.readAt ? '既読' : '未読'}
+              </span>
+              {expandedId !== notice.id ? (
+                <Button
+                  variant="outline"
+                  className="h-9 rounded-xl"
+                  onClick={() => {
+                    setExpandedId(notice.id)
+                    if (!notice.readAt) void markNoticeRead(notice.id)
+                  }}
+                >
+                  詳細を確認
+                </Button>
+              ) : notice.requiresConfirmation && !notice.confirmedAt ? (
+                <Button className="h-9 rounded-xl" onClick={() => void confirmNotice(notice.id)}>
+                  確認しました
+                </Button>
+              ) : notice.requiresConfirmation ? (
+                <Badge className="bg-primary text-primary-foreground">確認済み</Badge>
+              ) : null}
+            </div>
           </article>
         ))}
       </div>

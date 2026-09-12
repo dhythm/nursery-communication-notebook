@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('a parent can sign in and submit a notebook entry', async ({ page }) => {
+test('a parent can edit and submit a notebook entry', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
 
@@ -8,7 +8,7 @@ test('a parent can sign in and submit a notebook entry', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'こんにちは、田中さん' })).toBeVisible()
   await page.getByRole('button', { name: '子どもの様子を登録する' }).click()
 
-  const dialog = page.getByRole('dialog', { name: 'ひなた の様子を登録' })
+  const dialog = page.getByRole('dialog', { name: 'ひなた の様子を編集' })
   const note = `今日は自分で靴を履けました。${Date.now()}`
   await dialog.getByLabel('連絡・伝えたいこと').fill(note)
   const saved = page.waitForResponse(
@@ -88,7 +88,7 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
 }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
-  expect(await response.json()).toMatchObject({ ok: true, provider: 'pglite', migrationVersion: 4 })
+  expect(await response.json()).toMatchObject({ ok: true, provider: 'pglite', migrationVersion: 5 })
   let readCount = 0
   page.on('response', (response) => {
     if (
@@ -106,6 +106,53 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
   await page.getByRole('link', { name: 'ホーム', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'こんにちは、田中さん' })).toBeVisible()
   expect(readCount).toBe(1)
+})
+
+test('a teacher publishes an important notice and a parent confirms it', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '保育士', exact: true }).click()
+  await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
+  await expect(page).toHaveURL('/teacher')
+  await page.goto('/teacher/notices')
+  await page.getByRole('button', { name: '新規作成' }).click()
+  const dialog = page.getByRole('dialog', { name: 'お知らせを作成' })
+  const title = `確認依頼 ${Date.now()}`
+  await dialog.getByLabel('タイトル').fill(title)
+  await dialog.getByLabel('本文').fill('内容を確認してください。')
+  await dialog.getByLabel('確認を必須にする').check()
+  await dialog.getByRole('button', { name: '配信する' }).click()
+  await expect(page.getByText(title, { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
+  await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
+  await page.goto('/parent/notices')
+  const article = page.getByRole('article').filter({ hasText: title })
+  await article.getByRole('button', { name: '詳細を確認' }).click()
+  await article.getByRole('button', { name: '確認しました' }).click()
+  await expect(article.getByText('確認済み')).toBeVisible()
+})
+
+test('a teacher uploads a real PDF that an authorized parent can download', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '保育士', exact: true }).click()
+  await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
+  await expect(page).toHaveURL('/teacher')
+  await page.goto('/teacher/files')
+  await page.getByRole('button', { name: '資料をアップロード' }).click()
+  const dialog = page.getByRole('dialog', { name: '資料をアップロード' })
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'guide.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.7\nreal file'),
+  })
+  await dialog.getByRole('button', { name: 'アップロードして共有' }).click()
+  await expect(page.getByText('guide.pdf', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
+  await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
+  await page.goto('/parent/files')
+  const download = page.getByRole('link', { name: 'guide.pdfをダウンロード' })
+  const response = await page.request.get((await download.getAttribute('href')) ?? '')
+  expect(response.status()).toBe(200)
+  expect(await response.body()).toEqual(Buffer.from('%PDF-1.7\nreal file'))
 })
 
 test('the API rejects teacher-only updates and cross-origin requests', async ({ request }) => {

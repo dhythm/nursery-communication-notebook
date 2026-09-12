@@ -233,4 +233,162 @@ describe('notebook repository', () => {
       ).rows,
     ).toEqual([{ ended_on: '2026-09-12' }, { ended_on: null }])
   })
+
+  it('keeps a notebook draft private, publishes it, and records its history once', async () => {
+    const command = {
+      commandId: 'parent-c2-draft',
+      type: 'saveNotebookEntry' as const,
+      payload: {
+        childId: 'c2',
+        mood: 'normal' as const,
+        temperature: '36.6',
+        meals: '朝食',
+        nap: '8時間',
+        toilet: '通常',
+        note: '下書き内容',
+        status: 'draft' as const,
+      },
+    }
+    await mutateNotebook(database, parent, command)
+    await mutateNotebook(database, parent, command)
+    const draft = (await readNotebook(database, parent)).notebookEntries.find(
+      (entry) => entry.note === '下書き内容',
+    )!
+    expect(draft.status).toBe('draft')
+    expect(
+      (await readNotebook(database, teacher)).notebookEntries.some(
+        (entry) => entry.id === draft.id,
+      ),
+    ).toBe(false)
+
+    await mutateNotebook(database, parent, {
+      commandId: 'parent-c2-publish',
+      type: 'updateNotebookEntry',
+      payload: { id: draft.id, expectedVersion: draft.version!, patch: { status: 'published' } },
+    })
+    expect(
+      (await readNotebook(database, teacher)).notebookEntries.find(
+        (entry) => entry.id === draft.id,
+      ),
+    ).toMatchObject({ status: 'published', version: 2 })
+    expect(
+      (
+        await database.query(
+          'SELECT action FROM audit_log WHERE entity_id = $1 ORDER BY occurred_at',
+          [draft.id],
+        )
+      ).rows,
+    ).toEqual([{ action: 'draft_saved' }, { action: 'published' }])
+  })
+
+  it('publishes a targeted notice and persists read and confirmation state', async () => {
+    await mutateNotebook(database, teacher, {
+      commandId: 'important-notice',
+      type: 'saveNotice',
+      payload: {
+        title: '確認が必要です',
+        body: '本文',
+        category: '重要',
+        pinned: true,
+        requiresConfirmation: true,
+        targetClassId: 'class-f1-sora',
+        status: 'published',
+      },
+    })
+    const notice = (await readNotebook(database, parent)).notices.find(
+      (candidate) => candidate.title === '確認が必要です',
+    )!
+    expect(notice).toMatchObject({ recipientCount: 1, readCount: 0, confirmationCount: 0 })
+    await mutateNotebook(database, parent, {
+      commandId: 'read-important-notice',
+      type: 'markNoticeRead',
+      payload: { id: notice.id },
+    })
+    await mutateNotebook(database, parent, {
+      commandId: 'confirm-important-notice',
+      type: 'confirmNotice',
+      payload: { id: notice.id },
+    })
+    expect(
+      (await readNotebook(database, parent)).notices.find(
+        (candidate) => candidate.id === notice.id,
+      ),
+    ).toMatchObject({ readAt: expect.any(String), confirmedAt: expect.any(String) })
+  })
+
+  it('persists notification preferences and protects notification ownership', async () => {
+    expect((await readNotebook(database, teacher)).notificationPreferences).toContainEqual({
+      category: 'notebook',
+      enabled: false,
+    })
+    await mutateNotebook(database, teacher, {
+      commandId: 'enable-notebook-notification',
+      type: 'updateNotificationPreference',
+      payload: { category: 'notebook', enabled: true },
+    })
+    expect((await readNotebook(database, teacher)).notificationPreferences).toContainEqual({
+      category: 'notebook',
+      enabled: true,
+    })
+    const notification = (await readNotebook(database, parent)).notifications[0]
+    if (notification) {
+      await expect(
+        mutateNotebook(database, teacher, {
+          commandId: 'read-someone-elses-notification',
+          type: 'markNotificationRead',
+          payload: { id: notification.id },
+        }),
+      ).rejects.toThrow('Forbidden')
+    }
+  })
+
+  it('edits and cancels a calendar event with optimistic concurrency', async () => {
+    await mutateNotebook(database, teacher, {
+      commandId: 'event-to-edit',
+      type: 'addEvent',
+      payload: {
+        facilityId: teacher.facilityId,
+        date: '2026-10-01',
+        title: '変更前',
+        type: '行事',
+      },
+    })
+    const event = (await readNotebook(database, teacher)).calendarEvents.find(
+      (candidate) => candidate.title === '変更前',
+    )!
+    await mutateNotebook(database, teacher, {
+      commandId: 'edit-event',
+      type: 'updateEvent',
+      payload: { id: event.id, expectedVersion: event.version!, patch: { title: '変更後' } },
+    })
+    await expect(
+      mutateNotebook(database, teacher, {
+        commandId: 'stale-event',
+        type: 'updateEvent',
+        payload: { id: event.id, expectedVersion: event.version!, patch: { title: '競合' } },
+      }),
+    ).rejects.toThrow('Conflict')
+    await mutateNotebook(database, teacher, {
+      commandId: 'cancel-event',
+      type: 'cancelEvent',
+      payload: { id: event.id, expectedVersion: 2 },
+    })
+    expect(
+      (await readNotebook(database, teacher)).calendarEvents.some(
+        (candidate) => candidate.id === event.id,
+      ),
+    ).toBe(false)
+  })
+
+  it('filters searchable feeds in the database and applies pagination', async () => {
+    const result = await readNotebook(database, parent, {
+      search: '運動会',
+      from: '2026-09-01',
+      to: '2026-09-30',
+      limit: 1,
+    })
+    expect(result.notices).toHaveLength(1)
+    expect(result.notices[0].title).toContain('運動会')
+    expect(result.notebookEntries).toHaveLength(0)
+  })
 })

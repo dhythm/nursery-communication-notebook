@@ -9,7 +9,9 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
+  Megaphone,
   Users,
+  ShieldCheck,
 } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
 import { useStore } from '@/lib/store'
@@ -19,8 +21,10 @@ const navItems = [
   { href: '/teacher', label: 'ダッシュボード', icon: LayoutDashboard },
   { href: '/teacher/children', label: '園児管理', icon: Users },
   { href: '/teacher/messages', label: 'メッセージ', icon: MessageCircle },
+  { href: '/teacher/notices', label: 'お知らせ', icon: Megaphone },
   { href: '/teacher/files', label: '資料共有', icon: FolderOpen },
   { href: '/teacher/calendar', label: 'カレンダー', icon: CalendarDays },
+  { href: '/teacher/audit', label: '操作履歴', icon: ShieldCheck },
 ]
 
 export function TeacherShell({ children }: { children: ReactNode }) {

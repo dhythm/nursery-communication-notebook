@@ -15,16 +15,18 @@ import { Textarea } from '@/components/ui/textarea'
 import { ageFromBirthday, formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import type { Child } from '@/lib/types'
+import type { Child, NotebookEntry } from '@/lib/types'
 
 export default function TeacherChildren() {
-  const { currentUser, children, notebookEntries, updateChild } = useStore()
+  const { currentUser, children, notebookEntries, updateChild, withdrawNotebookEntry } = useStore()
   const myChildren = useMemo(
     () => children.filter((c) => c.facilityId === currentUser?.facilityId),
     [children, currentUser],
   )
   const [selectedId, setSelectedId] = useState(myChildren[0]?.id ?? '')
-  const [entryChild, setEntryChild] = useState<Child | null>(null)
+  const [entryEditor, setEntryEditor] = useState<{ child: Child; entry?: NotebookEntry } | null>(
+    null,
+  )
   const [editingChild, setEditingChild] = useState<Child | null>(null)
 
   const selected = myChildren.find((c) => c.id === selectedId) ?? myChildren[0]
@@ -120,7 +122,17 @@ export default function TeacherChildren() {
 
           <div className="flex items-center justify-between">
             <h3 className="font-display text-lg font-bold">連絡帳の記録</h3>
-            <Button className="h-10 rounded-2xl font-bold" onClick={() => setEntryChild(selected)}>
+            <Button
+              className="h-10 rounded-2xl font-bold"
+              onClick={() =>
+                setEntryEditor({
+                  child: selected,
+                  entry: entries.find(
+                    (entry) => entry.authorId === currentUser?.id && entry.status !== 'withdrawn',
+                  ),
+                })
+              }
+            >
               <NotebookPen className="size-4" />
               連絡帳を記入
             </Button>
@@ -132,15 +144,33 @@ export default function TeacherChildren() {
                 <p className="mb-2 text-xs font-semibold text-muted-foreground">
                   {formatDate(entry.date)}
                 </p>
-                <NotebookEntryCard entry={entry} />
+                <NotebookEntryCard
+                  entry={entry}
+                  onEdit={
+                    entry.authorId === currentUser?.id
+                      ? () => setEntryEditor({ child: selected, entry })
+                      : undefined
+                  }
+                  onWithdraw={
+                    entry.authorId === currentUser?.id
+                      ? () => void withdrawNotebookEntry(entry.id, entry.version ?? 1)
+                      : undefined
+                  }
+                />
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {entryChild && (
-        <TeacherEntryDialog open onClose={() => setEntryChild(null)} child={entryChild} />
+      {entryEditor && (
+        <TeacherEntryDialog
+          key={entryEditor.entry?.id ?? entryEditor.child.id}
+          open
+          onClose={() => setEntryEditor(null)}
+          child={entryEditor.child}
+          entry={entryEditor.entry}
+        />
       )}
       {editingChild && (
         <EditChildModal

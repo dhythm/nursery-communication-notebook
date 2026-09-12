@@ -21,6 +21,7 @@ export default defineConfig({
     env: {
       NEXT_DIST_DIR: '.next-e2e',
       PGLITE_DATA_DIR: mkdtempSync(join(tmpdir(), 'nursery-e2e-')),
+      FILE_STORAGE_DIR: mkdtempSync(join(tmpdir(), 'nursery-files-e2e-')),
     },
     url: 'http://127.0.0.1:3100',
     reuseExistingServer: false,

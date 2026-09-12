@@ -5,14 +5,15 @@ import { PencilLine } from 'lucide-react'
 import { EntryDialog } from '@/components/parent/entry-dialog'
 import { NotebookEntryCard } from '@/components/notebook-entry-card'
 import { Button } from '@/components/ui/button'
-import { formatDate } from '@/lib/format'
+import { formatDate, todayInTimeZone } from '@/lib/format'
 import { useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
+import type { NotebookEntry } from '@/lib/types'
 
 export default function ParentNotebook() {
-  const { notebookEntries } = useStore()
+  const { currentUser, notebookEntries, withdrawNotebookEntry } = useStore()
   const { selectedChild } = useParent()
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<NotebookEntry | 'new' | null>(null)
 
   const grouped = useMemo(() => {
     if (!selectedChild) return []
@@ -39,7 +40,19 @@ export default function ParentNotebook() {
             {selectedChild.name.split(' ')[1] ?? selectedChild.name} さんの記録
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="h-10 rounded-2xl font-bold">
+        <Button
+          onClick={() =>
+            setEditingEntry(
+              notebookEntries.find(
+                (entry) =>
+                  entry.childId === selectedChild.id &&
+                  entry.authorId === currentUser?.id &&
+                  entry.date === todayInTimeZone(),
+              ) ?? 'new',
+            )
+          }
+          className="h-10 rounded-2xl font-bold"
+        >
           <PencilLine className="size-4" />
           記入
         </Button>
@@ -55,12 +68,29 @@ export default function ParentNotebook() {
             <span className="h-px flex-1 bg-border" />
           </div>
           {entries.map((entry) => (
-            <NotebookEntryCard key={entry.id} entry={entry} />
+            <NotebookEntryCard
+              key={entry.id}
+              entry={entry}
+              onEdit={entry.authorId === currentUser?.id ? () => setEditingEntry(entry) : undefined}
+              onWithdraw={
+                entry.authorId === currentUser?.id
+                  ? () => void withdrawNotebookEntry(entry.id, entry.version ?? 1)
+                  : undefined
+              }
+            />
           ))}
         </section>
       ))}
 
-      <EntryDialog open={dialogOpen} onClose={() => setDialogOpen(false)} child={selectedChild} />
+      {editingEntry && (
+        <EntryDialog
+          key={editingEntry === 'new' ? selectedChild.id : editingEntry.id}
+          open
+          onClose={() => setEditingEntry(null)}
+          child={selectedChild}
+          entry={editingEntry === 'new' ? undefined : editingEntry}
+        />
+      )}
     </div>
   )
 }

@@ -2,7 +2,14 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { CalendarDays, ChevronRight, NotebookPen, PencilLine, Thermometer } from 'lucide-react'
+import {
+  Bell,
+  CalendarDays,
+  ChevronRight,
+  NotebookPen,
+  PencilLine,
+  Thermometer,
+} from 'lucide-react'
 import { EntryDialog } from '@/components/parent/entry-dialog'
 import { NotebookEntryCard } from '@/components/notebook-entry-card'
 import { Badge } from '@/components/ui/badge'
@@ -19,12 +26,21 @@ import {
 } from '@/lib/format'
 import { useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
-import type { Child } from '@/lib/types'
+import type { Child, NotebookEntry } from '@/lib/types'
 
 export default function ParentHome() {
-  const { currentUser, notebookEntries, notices, calendarEvents } = useStore()
+  const {
+    currentUser,
+    notebookEntries,
+    notices,
+    calendarEvents,
+    notifications,
+    markNotificationRead,
+  } = useStore()
   const { selectedChild } = useParent()
-  const [entryChild, setEntryChild] = useState<Child | null>(null)
+  const [entryEditor, setEntryEditor] = useState<{ child: Child; entry?: NotebookEntry } | null>(
+    null,
+  )
   const today = todayInTimeZone()
 
   if (!selectedChild) return null
@@ -33,6 +49,7 @@ export default function ParentHome() {
     (e) => e.childId === selectedChild.id && e.date === today,
   )
   const teacherToday = todayEntries.find((e) => e.author === 'teacher')
+  const myToday = todayEntries.find((e) => e.authorId === currentUser?.id)
   const latestEntry = notebookEntries.find((e) => e.childId === selectedChild.id)
   const upcoming = [...calendarEvents]
     .filter((e) => e.date >= today)
@@ -83,7 +100,7 @@ export default function ParentHome() {
       </section>
 
       <Button
-        onClick={() => setEntryChild(selectedChild)}
+        onClick={() => setEntryEditor({ child: selectedChild, entry: myToday })}
         className="h-14 w-full rounded-3xl text-base font-bold shadow-sm"
       >
         <PencilLine className="size-5" />
@@ -104,6 +121,32 @@ export default function ParentHome() {
           <EmptyCard text="まだ連絡帳の記録がありません" />
         )}
       </section>
+
+      {notifications.length > 0 && (
+        <section className="space-y-3">
+          <SectionHeader icon={<Bell className="size-4" />} title="通知" />
+          <div className="space-y-2">
+            {notifications.slice(0, 3).map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left"
+                onClick={() => !notification.readAt && void markNotificationRead(notification.id)}
+              >
+                <span
+                  className={`size-2 rounded-full ${notification.readAt ? 'bg-muted' : 'bg-primary'}`}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {notification.title}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {notification.readAt ? '既読' : '新着'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-3">
         <SectionHeader
@@ -163,7 +206,15 @@ export default function ParentHome() {
         </div>
       </section>
 
-      {entryChild && <EntryDialog open onClose={() => setEntryChild(null)} child={entryChild} />}
+      {entryEditor && (
+        <EntryDialog
+          key={entryEditor.entry?.id ?? entryEditor.child.id}
+          open
+          onClose={() => setEntryEditor(null)}
+          child={entryEditor.child}
+          entry={entryEditor.entry}
+        />
+      )}
     </div>
   )
 }

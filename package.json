@@ -29,7 +29,10 @@
     "db:check": "node --import tsx scripts/environment.ts configured check",
     "db:setup:agent": "node --import tsx scripts/environment.ts agent setup",
     "db:check:agent": "node --import tsx scripts/environment.ts agent check",
-    "db:setup:local": "node --import tsx scripts/environment.ts local setup"
+    "db:setup:local": "node --import tsx scripts/environment.ts local setup",
+    "data:backup": "node --import tsx scripts/data-maintenance.ts backup",
+    "data:restore": "node --import tsx scripts/data-maintenance.ts restore",
+    "data:retention": "node --import tsx scripts/data-maintenance.ts retention"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

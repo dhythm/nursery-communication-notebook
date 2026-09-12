@@ -34,10 +34,10 @@ describe('PGlite database', () => {
     const database = await openDatabase()
     await migrateDatabase(database)
     await migrateDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 5, seeded: false })
     await seedDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 5, seeded: true })
     expect((await database.query('SELECT id, name FROM facility')).rows).toEqual([
       { id: 'sample-facility', name: 'サンプル保育園' },
     ])
@@ -91,6 +91,7 @@ describe('PGlite database', () => {
       { version: 2 },
       { version: 3 },
       { version: 4 },
+      { version: 5 },
     ])
   }, 20_000)
 
@@ -102,7 +103,7 @@ describe('PGlite database', () => {
     await seedDatabase(database)
     await database.close()
     const reopened = await openDatabase(directory)
-    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 4, seeded: true })
+    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 5, seeded: true })
   }, 20_000)
 
   it('creates missing parent directories for a persistent database', async () => {
@@ -111,7 +112,7 @@ describe('PGlite database', () => {
     const database = await openDatabase(join(directory, 'missing-parent', 'pglite'))
     await migrateDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 5, seeded: true })
   }, 20_000)
 
   it('fails readiness checks before migrations have run', async () => {
@@ -208,6 +209,38 @@ describe('PGlite database', () => {
         )
       ).rows,
     ).toEqual([{ id: 'legacy-child', class_name: '既存組' }])
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 5, seeded: false })
+  }, 20_000)
+
+  it('creates constrained workflow, notification, audit, and file tables', async () => {
+    const database = await openDatabase()
+    await migrateDatabase(database)
+    const tables = await database.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = ANY($1::text[])
+       ORDER BY table_name`,
+      [
+        [
+          'app_notification',
+          'audit_log',
+          'calendar_event',
+          'file_object',
+          'notebook_entry',
+          'notice',
+          'notification_outbox',
+          'notification_preference',
+        ],
+      ],
+    )
+    expect(tables.rows.map((row) => row.table_name)).toEqual([
+      'app_notification',
+      'audit_log',
+      'calendar_event',
+      'file_object',
+      'notebook_entry',
+      'notice',
+      'notification_outbox',
+      'notification_preference',
+    ])
   }, 20_000)
 })

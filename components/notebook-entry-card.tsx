@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { Moon, Thermometer, Toilet, UtensilsCrossed } from 'lucide-react'
+import { Moon, Pencil, Thermometer, Toilet, Undo2, UtensilsCrossed } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { moodConfig, formatDate } from '@/lib/format'
 import type { NotebookEntry } from '@/lib/types'
@@ -15,9 +15,13 @@ const rows = [
 export function NotebookEntryCard({
   entry,
   showDate = false,
+  onEdit,
+  onWithdraw,
 }: {
   entry: NotebookEntry
   showDate?: boolean
+  onEdit?: () => void
+  onWithdraw?: () => void
 }) {
   const mood = moodConfig[entry.mood]
   const isTeacher = entry.author === 'teacher'
@@ -35,12 +39,37 @@ export function NotebookEntryCard({
             {isTeacher ? '園から' : 'ご家庭から'}
           </Badge>
           <span className="text-sm font-semibold">{entry.authorName}</span>
+          {entry.status === 'draft' && (
+            <Badge className="bg-accent text-accent-foreground">下書き</Badge>
+          )}
         </div>
-        {showDate && (
-          <span className="text-xs font-medium text-muted-foreground">
-            {formatDate(entry.date)}
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {showDate && (
+            <span className="text-xs font-medium text-muted-foreground">
+              {formatDate(entry.date)}
+            </span>
+          )}
+          {onEdit && (
+            <button
+              type="button"
+              aria-label="編集"
+              className="rounded-full p-1.5 hover:bg-background/70"
+              onClick={onEdit}
+            >
+              <Pencil className="size-4" />
+            </button>
+          )}
+          {onWithdraw && entry.status === 'published' && (
+            <button
+              type="button"
+              aria-label="送信取消"
+              className="rounded-full p-1.5 text-destructive hover:bg-background/70"
+              onClick={onWithdraw}
+            >
+              <Undo2 className="size-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3 p-4">

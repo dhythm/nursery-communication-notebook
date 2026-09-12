@@ -4,6 +4,7 @@ export interface RuntimeConfig {
   databaseProvider: 'postgres' | 'pglite'
   databaseUrl?: string
   pgliteDataDir: string
+  fileStorageDir: string
 }
 
 /** Server configuration. No credentials or environment values are sent to the browser. */
@@ -43,5 +44,6 @@ export function getRuntimeConfig(
     databaseProvider,
     databaseUrl: databaseProvider === 'postgres' ? databaseUrl : undefined,
     pgliteDataDir: environment.PGLITE_DATA_DIR || '.data/pglite',
+    fileStorageDir: environment.FILE_STORAGE_DIR || '.data/files',
   }
 }

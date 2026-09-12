@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
 import { moodConfig } from '@/lib/format'
 import { useStore } from '@/lib/store'
-import type { Child, Mood } from '@/lib/types'
+import type { Child, Mood, NotebookEntry } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const moods = Object.keys(moodConfig) as Mood[]
@@ -16,18 +16,21 @@ export function EntryDialog({
   open,
   onClose,
   child,
+  entry,
 }: {
   open: boolean
   onClose: () => void
   child: Child
+  entry?: NotebookEntry
 }) {
-  const { addNotebookEntry } = useStore()
-  const [mood, setMood] = useState<Mood>('genki')
-  const [temperature, setTemperature] = useState('36.5')
-  const [meals, setMeals] = useState('')
-  const [nap, setNap] = useState('')
-  const [toilet, setToilet] = useState('')
-  const [note, setNote] = useState('')
+  const { saveNotebookEntry, updateNotebookEntry, uploadFile } = useStore()
+  const [mood, setMood] = useState<Mood>(entry?.mood ?? 'genki')
+  const [temperature, setTemperature] = useState(entry?.temperature ?? '36.5')
+  const [meals, setMeals] = useState(entry?.meals ?? '')
+  const [nap, setNap] = useState(entry?.nap ?? '')
+  const [toilet, setToilet] = useState(entry?.toilet ?? '')
+  const [note, setNote] = useState(entry?.note ?? '')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
 
   function reset() {
     setMood('genki')
@@ -41,12 +44,15 @@ export function EntryDialog({
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function submit() {
+  async function submit(status: 'draft' | 'published') {
     if (isSaving) return
     setIsSaving(true)
     setError(null)
     try {
-      await addNotebookEntry({
+      const photo = photoFile
+        ? await uploadFile(photoFile, `${child.name}の連絡帳写真`, undefined, 'notebook', child.id)
+        : entry?.photo
+      const payload = {
         childId: child.id,
         mood,
         temperature,
@@ -54,7 +60,14 @@ export function EntryDialog({
         nap: nap || '記入なし',
         toilet: toilet || '記入なし',
         note: note || '',
-      })
+        ...(photo ? { photo } : {}),
+        status,
+      } as const
+      if (entry) {
+        const patch: Partial<NotebookEntry> = { ...payload }
+        delete patch.childId
+        await updateNotebookEntry(entry.id, entry.version ?? 1, patch)
+      } else await saveNotebookEntry(payload)
       reset()
       onClose()
     } catch (error) {
@@ -68,7 +81,7 @@ export function EntryDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title={`${child.name.split(' ')[1] ?? child.name} の様子を登録`}
+      title={`${child.name.split(' ')[1] ?? child.name} の様子を${entry ? '編集' : '登録'}`}
       description="ご家庭での様子を先生に伝えましょう"
       footer={
         <div className="flex gap-2">
@@ -76,8 +89,16 @@ export function EntryDialog({
             キャンセル
           </Button>
           <Button
+            variant="outline"
+            className="h-11 flex-1 rounded-2xl"
+            onClick={() => void submit('draft')}
+            disabled={isSaving}
+          >
+            下書き保存
+          </Button>
+          <Button
             className="h-11 flex-[2] rounded-2xl font-bold"
-            onClick={submit}
+            onClick={() => void submit('published')}
             disabled={isSaving}
           >
             この内容で送信
@@ -163,6 +184,13 @@ export function EntryDialog({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="先生への連絡事項があればご記入ください"
+          />
+        </Field>
+        <Field label="写真">
+          <Input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
           />
         </Field>
       </div>

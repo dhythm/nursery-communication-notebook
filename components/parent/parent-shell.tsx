@@ -3,7 +3,16 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState, type ReactNode } from 'react'
-import { Bell, BookOpenText, Check, ChevronDown, Home, MessageCircle, Settings } from 'lucide-react'
+import {
+  Bell,
+  BookOpenText,
+  Check,
+  ChevronDown,
+  FolderOpen,
+  Home,
+  MessageCircle,
+  Settings,
+} from 'lucide-react'
 import { BrandMark } from '@/components/brand'
 import { ChildAvatar } from '@/components/ui/child-avatar'
 import { ParentProvider, useParent } from '@/lib/parent-context'
@@ -16,6 +25,7 @@ const navItems = [
   { href: '/parent/notebook', label: '連絡帳', icon: BookOpenText },
   { href: '/parent/messages', label: 'メッセージ', icon: MessageCircle },
   { href: '/parent/notices', label: 'お知らせ', icon: Bell },
+  { href: '/parent/files', label: '資料', icon: FolderOpen },
   { href: '/parent/settings', label: '設定', icon: Settings },
 ]
 

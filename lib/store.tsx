@@ -21,6 +21,7 @@ import type {
   Notice,
   Role,
   SharedFile,
+  NotificationCategory,
   User,
 } from './types'
 
@@ -37,8 +38,37 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   ) => Promise<void>
   addNotice: (notice: Omit<Notice, 'id' | 'date'>) => Promise<void>
   addFile: (file: Omit<SharedFile, 'id' | 'date' | 'uploadedBy'>) => Promise<void>
+  uploadFile: (
+    file: File,
+    displayName: string,
+    targetClassId?: string,
+    purpose?: 'shared' | 'notebook',
+    targetChildId?: string,
+  ) => Promise<string>
   addEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>
   updateChild: (id: string, expectedVersion: number, patch: Partial<Child>) => Promise<void>
+  saveNotebookEntry: (
+    entry: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'> & {
+      status: 'draft' | 'published'
+    },
+  ) => Promise<void>
+  updateNotebookEntry: (
+    id: string,
+    expectedVersion: number,
+    patch: Partial<NotebookEntry>,
+  ) => Promise<void>
+  withdrawNotebookEntry: (id: string, expectedVersion: number) => Promise<void>
+  saveNotice: (
+    notice: Omit<Notice, 'id' | 'facilityId' | 'date'> & { status: 'draft' | 'published' },
+  ) => Promise<void>
+  updateNotice: (id: string, expectedVersion: number, patch: Partial<Notice>) => Promise<void>
+  withdrawNotice: (id: string, expectedVersion: number) => Promise<void>
+  markNoticeRead: (id: string) => Promise<void>
+  confirmNotice: (id: string) => Promise<void>
+  updateEvent: (id: string, expectedVersion: number, patch: Partial<CalendarEvent>) => Promise<void>
+  cancelEvent: (id: string, expectedVersion: number) => Promise<void>
+  updateNotificationPreference: (category: NotificationCategory, enabled: boolean) => Promise<void>
+  markNotificationRead: (id: string) => Promise<void>
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
@@ -50,6 +80,9 @@ const emptySnapshot: NotebookSnapshot = {
   messages: [],
   sharedFiles: [],
   calendarEvents: [],
+  notificationPreferences: [],
+  notifications: [],
+  auditEvents: [],
 }
 interface StoreProps {
   children: ReactNode
@@ -104,9 +137,45 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
     addMessage: (payload) => mutate({ type: 'addMessage', payload }),
     addNotice: (payload) => mutate({ type: 'addNotice', payload }),
     addFile: (payload) => mutate({ type: 'addFile', payload }),
+    uploadFile: async (file, displayName, targetClassId, purpose = 'shared', targetChildId) => {
+      const form = new FormData()
+      form.set('file', file)
+      form.set('displayName', displayName)
+      form.set('commandId', crypto.randomUUID())
+      if (targetClassId) form.set('targetClassId', targetClassId)
+      if (targetChildId) form.set('targetChildId', targetChildId)
+      form.set('purpose', purpose)
+      const response = await fetch('/api/files', { method: 'POST', body: form })
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null
+        throw new Error(body?.error ?? 'アップロードできませんでした。')
+      }
+      const result = (await response.json()) as { id: string }
+      await client.invalidateQueries({ queryKey: notebookQuery(queryScope).queryKey })
+      return `/api/files/${result.id}?inline=1`
+    },
     addEvent: (payload) => mutate({ type: 'addEvent', payload }),
     updateChild: (id, expectedVersion, patch) =>
       mutate({ type: 'updateChild', payload: { id, expectedVersion, patch } }),
+    saveNotebookEntry: (payload) => mutate({ type: 'saveNotebookEntry', payload }),
+    updateNotebookEntry: (id, expectedVersion, patch) =>
+      mutate({ type: 'updateNotebookEntry', payload: { id, expectedVersion, patch } }),
+    withdrawNotebookEntry: (id, expectedVersion) =>
+      mutate({ type: 'withdrawNotebookEntry', payload: { id, expectedVersion } }),
+    saveNotice: (payload) => mutate({ type: 'saveNotice', payload }),
+    updateNotice: (id, expectedVersion, patch) =>
+      mutate({ type: 'updateNotice', payload: { id, expectedVersion, patch } }),
+    withdrawNotice: (id, expectedVersion) =>
+      mutate({ type: 'withdrawNotice', payload: { id, expectedVersion } }),
+    markNoticeRead: (id) => mutate({ type: 'markNoticeRead', payload: { id } }),
+    confirmNotice: (id) => mutate({ type: 'confirmNotice', payload: { id } }),
+    updateEvent: (id, expectedVersion, patch) =>
+      mutate({ type: 'updateEvent', payload: { id, expectedVersion, patch } }),
+    cancelEvent: (id, expectedVersion) =>
+      mutate({ type: 'cancelEvent', payload: { id, expectedVersion } }),
+    updateNotificationPreference: (category, enabled) =>
+      mutate({ type: 'updateNotificationPreference', payload: { category, enabled } }),
+    markNotificationRead: (id) => mutate({ type: 'markNotificationRead', payload: { id } }),
   }
 
   if (currentUser && query.isPending)
