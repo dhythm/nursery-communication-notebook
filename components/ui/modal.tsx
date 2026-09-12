@@ -14,7 +14,15 @@ interface ModalProps {
   className?: string
 }
 
-export function Modal({ open, onClose, title, description, children, footer, className }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  className,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()

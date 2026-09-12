@@ -2,13 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo } from 'react'
-import {
-  CalendarClock,
-  CheckCircle2,
-  ClipboardList,
-  MessageCircle,
-  Users,
-} from 'lucide-react'
+import { CalendarClock, CheckCircle2, ClipboardList, MessageCircle, Users } from 'lucide-react'
 import { PageTitle } from '@/components/teacher/page-title'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -36,7 +30,13 @@ export default function TeacherDashboard() {
   const parentMsgCount = messages.filter((m) => m.sender === 'parent').length
 
   const stats = [
-    { label: '在園児', value: myChildren.length, unit: '名', icon: Users, color: 'oklch(0.67 0.13 158)' },
+    {
+      label: '在園児',
+      value: myChildren.length,
+      unit: '名',
+      icon: Users,
+      color: 'oklch(0.67 0.13 158)',
+    },
     {
       label: '本日の連絡帳',
       value: todayTeacherEntries.length,

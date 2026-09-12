@@ -119,7 +119,11 @@ export function TeacherEntryDialog({
         </Field>
 
         <Field label="午睡">
-          <Input value={nap} onChange={(e) => setNap(e.target.value)} placeholder="例）12:40〜14:30" />
+          <Input
+            value={nap}
+            onChange={(e) => setNap(e.target.value)}
+            placeholder="例）12:40〜14:30"
+          />
         </Field>
 
         <Field label="排せつ">

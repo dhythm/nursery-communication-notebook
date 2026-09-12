@@ -30,3 +30,8 @@ next-env.d.ts
 /tasks/
 
 .DS_Store
+
+# test artifacts
+/coverage/
+/playwright-report/
+/test-results/

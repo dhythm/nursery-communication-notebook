@@ -123,9 +123,7 @@ function BottomNav() {
       <ul className="flex items-stretch justify-around px-1 py-1.5">
         {navItems.map((item) => {
           const active =
-            item.href === '/parent'
-              ? pathname === '/parent'
-              : pathname.startsWith(item.href)
+            item.href === '/parent' ? pathname === '/parent' : pathname.startsWith(item.href)
           const Icon = item.icon
           return (
             <li key={item.href} className="flex-1">

@@ -14,10 +14,7 @@ export function formatShortDate(iso: string): string {
 
 export function formatTime(iso: string): string {
   const d = new Date(iso)
-  return `${d.getHours().toString().padStart(2, '0')}:${d
-    .getMinutes()
-    .toString()
-    .padStart(2, '0')}`
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 }
 
 export function ageFromBirthday(iso: string): string {

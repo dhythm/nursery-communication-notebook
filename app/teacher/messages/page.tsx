@@ -69,7 +69,9 @@ export default function TeacherMessages() {
                       )}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
-                      {last ? `${last.sender === 'parent' ? '' : 'あなた: '}${last.text}` : 'メッセージなし'}
+                      {last
+                        ? `${last.sender === 'parent' ? '' : 'あなた: '}${last.text}`
+                        : 'メッセージなし'}
                     </p>
                   </div>
                 </button>
@@ -96,9 +98,7 @@ export default function TeacherMessages() {
           </button>
           <ChildAvatar name={selected.name} color={selected.avatarColor} size={38} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold">
-              {selected.name} さんの保護者
-            </p>
+            <p className="truncate text-sm font-bold">{selected.name} さんの保護者</p>
             <p className="truncate text-xs text-muted-foreground">{selected.className}</p>
           </div>
         </div>

@@ -2,13 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import {
-  CalendarDays,
-  ChevronRight,
-  NotebookPen,
-  PencilLine,
-  Thermometer,
-} from 'lucide-react'
+import { CalendarDays, ChevronRight, NotebookPen, PencilLine, Thermometer } from 'lucide-react'
 import { EntryDialog } from '@/components/parent/entry-dialog'
 import { NotebookEntryCard } from '@/components/notebook-entry-card'
 import { Badge } from '@/components/ui/badge'
@@ -104,7 +98,11 @@ export default function ParentHome() {
       </section>
 
       <section className="space-y-3">
-        <SectionHeader icon={<CalendarDays className="size-4" />} title="お知らせ" href="/parent/notices" />
+        <SectionHeader
+          icon={<CalendarDays className="size-4" />}
+          title="お知らせ"
+          href="/parent/notices"
+        />
         <div className="space-y-2">
           {topNotices.map((notice) => (
             <Link
@@ -115,7 +113,9 @@ export default function ParentHome() {
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex items-center gap-2">
                   <Badge>{notice.category}</Badge>
-                  <span className="text-xs text-muted-foreground">{formatShortDate(notice.date)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatShortDate(notice.date)}
+                  </span>
                 </div>
                 <p className="truncate text-sm font-bold">{notice.title}</p>
                 <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{notice.body}</p>

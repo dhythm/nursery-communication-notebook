@@ -11,20 +11,21 @@ import { useStore } from '@/lib/store'
 import type { Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-const demoAccounts: Record<Role, { email: string; password: string; label: string; hint: string }> = {
-  parent: {
-    email: 'sakura@example.com',
-    password: 'demo1234',
-    label: '保護者としてログイン',
-    hint: '田中さくら さん（ひなた・あおい の保護者）',
-  },
-  teacher: {
-    email: 'yamada@nijiiro.ed.jp',
-    password: 'demo1234',
-    label: '保育士としてログイン',
-    hint: '山田めぐみ 先生（そら組 担任）',
-  },
-}
+const demoAccounts: Record<Role, { email: string; password: string; label: string; hint: string }> =
+  {
+    parent: {
+      email: 'sakura@example.com',
+      password: 'demo1234',
+      label: '保護者としてログイン',
+      hint: '田中さくら さん（ひなた・あおい の保護者）',
+    },
+    teacher: {
+      email: 'yamada@nijiiro.ed.jp',
+      password: 'demo1234',
+      label: '保育士としてログイン',
+      hint: '山田めぐみ 先生（そら組 担任）',
+    },
+  }
 
 export default function LoginPage() {
   const router = useRouter()
@@ -168,9 +169,7 @@ function RoleTab({
       aria-pressed={active}
       className={cn(
         'flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition-colors',
-        active
-          ? 'bg-card text-primary shadow-sm'
-          : 'text-muted-foreground hover:text-foreground',
+        active ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground',
       )}
     >
       {icon}

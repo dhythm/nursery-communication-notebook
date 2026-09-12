@@ -31,18 +31,15 @@ export function NotebookEntryCard({
         )}
       >
         <div className="flex items-center gap-2">
-          <Badge
-            className={cn(
-              'text-white',
-              isTeacher ? 'bg-primary' : 'bg-chart-3',
-            )}
-          >
+          <Badge className={cn('text-white', isTeacher ? 'bg-primary' : 'bg-chart-3')}>
             {isTeacher ? '園から' : 'ご家庭から'}
           </Badge>
           <span className="text-sm font-semibold">{entry.authorName}</span>
         </div>
         {showDate && (
-          <span className="text-xs font-medium text-muted-foreground">{formatDate(entry.date)}</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            {formatDate(entry.date)}
+          </span>
         )}
       </div>
 

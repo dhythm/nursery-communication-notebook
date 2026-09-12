@@ -24,7 +24,7 @@ export function ParentProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ParentContextValue>(() => {
     const id = myChildren.some((c) => c.id === selectedChildId)
       ? selectedChildId
-      : myChildren[0]?.id ?? ''
+      : (myChildren[0]?.id ?? '')
     return {
       myChildren,
       selectedChildId: id,

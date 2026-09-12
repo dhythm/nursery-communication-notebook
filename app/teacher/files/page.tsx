@@ -68,7 +68,7 @@ export default function TeacherFiles() {
                 <div className="mt-1.5 flex items-center gap-2">
                   <Badge className="gap-1">
                     <Users className="size-3" />
-                    {file.sharedWith === 'all' ? '全園児' : file.className ?? '一部クラス'}
+                    {file.sharedWith === 'all' ? '全園児' : (file.className ?? '一部クラス')}
                   </Badge>
                   <span className="text-xs text-muted-foreground">{file.uploadedBy}</span>
                 </div>
@@ -193,12 +193,7 @@ function UploadModal({
           <div className="flex flex-wrap gap-2">
             <TargetChip label="全園児" active={target === 'all'} onClick={() => setTarget('all')} />
             {classes.map((c) => (
-              <TargetChip
-                key={c}
-                label={c}
-                active={target === c}
-                onClick={() => setTarget(c)}
-              />
+              <TargetChip key={c} label={c} active={target === c} onClick={() => setTarget(c)} />
             ))}
           </div>
         </div>

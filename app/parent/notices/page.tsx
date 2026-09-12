@@ -30,8 +30,7 @@ export default function ParentNotices() {
   const [filter, setFilter] = useState<(typeof categories)[number]>('すべて')
 
   const list = useMemo(() => {
-    const filtered =
-      filter === 'すべて' ? notices : notices.filter((n) => n.category === filter)
+    const filtered = filter === 'すべて' ? notices : notices.filter((n) => n.category === filter)
     return [...filtered].sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
       return b.date.localeCompare(a.date)

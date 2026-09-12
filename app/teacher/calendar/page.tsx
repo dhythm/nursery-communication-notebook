@@ -266,7 +266,11 @@ function AddEventModal({
       <div className="space-y-4">
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold">予定名</span>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例）保育参観" />
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="例）保育参観"
+          />
         </label>
 
         <div>
@@ -279,7 +283,9 @@ function AddEventModal({
                 onClick={() => setType(t)}
                 className={cn(
                   'rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors',
-                  type === t ? 'border-transparent text-white' : 'border-border bg-background text-muted-foreground hover:bg-muted',
+                  type === t
+                    ? 'border-transparent text-white'
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted',
                 )}
                 style={type === t ? { backgroundColor: eventColor[t] } : undefined}
               >

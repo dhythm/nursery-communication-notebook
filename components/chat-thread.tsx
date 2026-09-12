@@ -23,9 +23,7 @@ export function ChatThread({
 
   const thread = useMemo(
     () =>
-      messages
-        .filter((m) => m.childId === childId)
-        .sort((a, b) => a.time.localeCompare(b.time)),
+      messages.filter((m) => m.childId === childId).sort((a, b) => a.time.localeCompare(b.time)),
     [messages, childId],
   )
 
@@ -97,12 +95,7 @@ export function ChatThread({
             onCompositionStart={() => (composingRef.current = true)}
             onCompositionEnd={() => (composingRef.current = false)}
             onKeyDown={(e) => {
-              if (
-                e.key === 'Enter' &&
-                !e.shiftKey &&
-                !composingRef.current &&
-                e.keyCode !== 229
-              ) {
+              if (e.key === 'Enter' && !e.shiftKey && !composingRef.current && e.keyCode !== 229) {
                 e.preventDefault()
                 send()
               }

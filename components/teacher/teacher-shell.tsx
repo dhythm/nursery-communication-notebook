@@ -49,9 +49,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
           <ul className="space-y-1">
             {navItems.map((item) => {
               const active =
-                item.href === '/teacher'
-                  ? pathname === '/teacher'
-                  : pathname.startsWith(item.href)
+                item.href === '/teacher' ? pathname === '/teacher' : pathname.startsWith(item.href)
               const Icon = item.icon
               return (
                 <li key={item.href}>
@@ -110,9 +108,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
           <ul className="flex items-stretch justify-around px-1 py-1.5">
             {navItems.map((item) => {
               const active =
-                item.href === '/teacher'
-                  ? pathname === '/teacher'
-                  : pathname.startsWith(item.href)
+                item.href === '/teacher' ? pathname === '/teacher' : pathname.startsWith(item.href)
               const Icon = item.icon
               return (
                 <li key={item.href} className="flex-1">

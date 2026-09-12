@@ -144,7 +144,10 @@ function ToggleRow({
 
 function LinkRow({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <button type="button" className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50">
+    <button
+      type="button"
+      className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/50"
+    >
       <span className="text-primary">{icon}</span>
       <span className="flex-1 text-sm font-semibold">{label}</span>
       <ChevronRight className="size-4 text-muted-foreground" />

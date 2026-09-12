@@ -192,7 +192,9 @@ function EditChildModal({
     >
       <div className="space-y-4">
         <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold">アレルギー（読点や空白で区切り）</span>
+          <span className="mb-1.5 block text-sm font-semibold">
+            アレルギー（読点や空白で区切り）
+          </span>
           <Input
             value={allergies}
             onChange={(e) => setAllergies(e.target.value)}
