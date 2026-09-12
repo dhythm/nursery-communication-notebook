@@ -57,6 +57,7 @@ test('a parent can edit and submit a notebook entry', async ({ page }) => {
   expect(bedtimeBox!.width).toBeLessThan(dialogBox!.width * 0.6)
   expect(Math.abs(temperatureBox!.y - measuredAtBox!.y)).toBeLessThan(5)
   expect(Math.abs(pickupPersonBox!.y - pickupTimeBox!.y)).toBeLessThan(5)
+  expect(Math.abs(pickupPersonBox!.height - pickupTimeBox!.height)).toBeLessThan(1)
   const saved = page.waitForResponse(
     (response) => response.url().endsWith('/notebook') && response.request().method() === 'POST',
   )

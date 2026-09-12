@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { moodConfig } from '@/lib/format'
 import {
@@ -337,17 +338,17 @@ function StoolFields({
         />
         <label>
           <span className="sr-only">{label}の回数</span>
-          <select
+          <Select
             value={count}
             onChange={(event) => onCountChange(Number(event.target.value))}
-            className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+            className="px-2 text-sm"
           >
             {Array.from({ length: 11 }, (_, value) => (
               <option key={value} value={value}>
                 {value}回
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
     </div>
@@ -366,18 +367,13 @@ function ChoiceSelect({
   onChange: (value: string) => void
 }) {
   return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-    >
+    <Select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)}>
       {Object.entries(options).map(([optionValue, optionLabel]) => (
         <option key={optionValue} value={optionValue}>
           {optionLabel}
         </option>
       ))}
-    </select>
+    </Select>
   )
 }
 
