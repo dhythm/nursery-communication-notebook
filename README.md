@@ -111,7 +111,7 @@ BOOTSTRAP_MANAGER_EMAIL=director@example.com \
 pnpm db:bootstrap
 ```
 
-公開デモDBは、GitHub ActionsのRepository secret `DEMO_DATABASE_URL`へNeon Productionブランチの非プール接続文字列を登録すると、mainブランチへのpush後に自動で初期化されます。処理はデモ用の園以外が存在するDBを拒否します。手動実行する場合は、接続先を十分に確認して次を実行します。
+公開デモDBは、mainブランチからVercel Productionへデプロイすると、ビルド開始時にVercelの`DATABASE_URL`を使って自動で初期化されます。Previewと他のVercelプロジェクトでは実行されず、デモ用の園以外が存在するDBも拒否します。手動実行する場合は、接続先を十分に確認して次を実行します。
 
 ```sh
 DEMO_RESET_CONFIRM=RESET_NURSERY_PUBLIC_DEMO pnpm db:reset:demo

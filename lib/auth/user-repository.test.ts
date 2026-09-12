@@ -20,7 +20,7 @@ describe('authentication user repository', () => {
     )
     await expect(
       authenticateCredentials(database, 'SAKURA@example.com', 'a secure nursery password'),
-    ).resolves.toMatchObject({ id: 'u1', role: 'parent' })
+    ).resolves.toMatchObject({ id: 'u1', role: 'parent', childIds: ['c1', 'c2'] })
     await expect(
       authenticateCredentials(database, 'sakura@example.com', 'wrong password'),
     ).resolves.toBeNull()

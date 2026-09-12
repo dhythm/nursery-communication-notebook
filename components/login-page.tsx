@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { HeartHandshake, Lock, Mail, School } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
@@ -39,6 +39,10 @@ export default function LoginPage({ authMode }: { authMode: AuthMode }) {
   const [email, setEmail] = useState(authMode === 'skip' ? account.email : '')
   const [password, setPassword] = useState(authMode === 'skip' ? account.password : '')
   const [signInState, signInAction, isPending] = useActionState(signInWithCredentials, {})
+
+  useEffect(() => {
+    if (signInState.authenticated) window.location.replace('/')
+  }, [signInState.authenticated])
 
   function switchRole(next: Role) {
     setRole(next)

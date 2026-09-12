@@ -11,6 +11,7 @@ interface UserRow {
   facilityId: string
   facilitySlug: string
   role: Role
+  childIds: string[]
   jobTitle: string | null
   canManageFacility: boolean
 }
@@ -18,7 +19,12 @@ interface UserRow {
 const applicationUserSql = `
   SELECT member.id, member.name, member.email, membership.facility_id AS "facilityId",
     facility.slug AS "facilitySlug", membership.role, membership.job_title AS "jobTitle",
-    membership.can_manage_facility AS "canManageFacility"
+    membership.can_manage_facility AS "canManageFacility",
+    COALESCE((SELECT array_agg(link.child_id ORDER BY link.child_id)
+      FROM guardian_child link
+      WHERE link.guardian_user_id = member.id
+        AND link.facility_id = membership.facility_id
+        AND link.ended_on IS NULL), ARRAY[]::text[]) AS "childIds"
   FROM app_user member
   JOIN facility_membership membership ON membership.user_id = member.id
   JOIN facility ON facility.id = membership.facility_id
@@ -37,6 +43,7 @@ export async function getApplicationUser(database: Database, id: string): Promis
     facilityId: row.facilityId,
     facilitySlug: row.facilitySlug,
     role: row.role,
+    childIds: row.childIds,
     ...(row.jobTitle ? { jobTitle: row.jobTitle } : {}),
     canManageFacility: row.canManageFacility,
   }

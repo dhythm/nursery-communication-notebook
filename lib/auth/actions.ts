@@ -24,6 +24,7 @@ export async function clearSkipRole() {
 }
 
 export interface SignInState {
+  authenticated?: boolean
   error?: string
 }
 
@@ -37,9 +38,10 @@ export async function signInWithCredentials(
     await signIn('credentials', {
       email: formData.get('email'),
       password: formData.get('password'),
+      redirect: false,
       redirectTo: '/',
     })
-    return {}
+    return { authenticated: true }
   } catch (error) {
     const { AuthError } = await import('next-auth')
     if (error instanceof AuthError) return { error: 'IDまたはパスワードが正しくありません。' }
