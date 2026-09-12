@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { createContext, useContext, useState, type ReactNode } from 'react'
+import { AppLoading } from '@/components/app-loading'
 import { selectSkipRole, clearSkipRole } from '@/lib/auth/actions'
 import { notebookMutation, notebookQuery } from '@/lib/client/notebook'
 import type {
@@ -211,12 +212,7 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
     endMembership: (userId, role) => mutate({ type: 'endMembership', payload: { userId, role } }),
   }
 
-  if (currentUser && query.isPending)
-    return (
-      <p role="status" className="p-8 text-center">
-        読み込み中…
-      </p>
-    )
+  if (currentUser && query.isPending) return <AppLoading />
   if (currentUser && query.isError && !query.data)
     return (
       <div role="alert" className="space-y-3 p-8 text-center">

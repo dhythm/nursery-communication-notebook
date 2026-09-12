@@ -3,6 +3,24 @@ import { expect, test } from '@playwright/test'
 const parentPath = '/nurseries/nijiiro/parent'
 const teacherPath = '/nurseries/nijiiro/teacher'
 
+test('shows a friendly loading state while opening the notebook', async ({ page }) => {
+  let releaseRequest!: () => void
+  const requestBlocked = new Promise<void>((resolve) => {
+    releaseRequest = resolve
+  })
+  await page.route('**/api/nurseries/nijiiro/notebook', async (route) => {
+    await requestBlocked
+    await route.continue()
+  })
+
+  await page.goto(parentPath)
+  const loading = page.getByRole('status', { name: '連絡帳をひらいています' })
+  await expect(loading).toBeVisible()
+  releaseRequest()
+  await expect(loading).toBeHidden()
+  await expect(page.getByRole('heading', { name: 'こんにちは、田中さん' })).toBeVisible()
+})
+
 test('a parent can edit and submit a notebook entry', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
