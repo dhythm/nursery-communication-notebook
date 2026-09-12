@@ -13,7 +13,17 @@ test('a parent can edit and submit a notebook entry', async ({ page }) => {
 
   const dialog = page.getByRole('dialog', { name: 'ひなた の様子を編集' })
   const note = `今日は自分で靴を履けました。${Date.now()}`
-  await dialog.getByLabel('連絡・伝えたいこと').fill(note)
+  await dialog.getByLabel('夕食内容').fill('ご飯、焼き魚、みそ汁')
+  await dialog.getByLabel('就寝時間').fill('21:00')
+  await dialog.getByLabel('昨晩の排便の状態').selectOption('normal')
+  await dialog.getByLabel('起床時間').fill('06:30')
+  await dialog.getByLabel('今朝の排便の状態').selectOption('none')
+  await dialog.getByLabel('朝食内容').fill('トースト、バナナ、牛乳')
+  await dialog.getByLabel('朝食の量').selectOption('most')
+  await dialog.getByLabel('子どもの様子').fill('元気に過ごしています')
+  await dialog.getByLabel('お迎えに来る方').selectOption('mother')
+  await dialog.getByLabel('お迎え予定時刻').fill('17:30')
+  await dialog.getByLabel('連絡事項').fill(note)
   const saved = page.waitForResponse(
     (response) => response.url().endsWith('/notebook') && response.request().method() === 'POST',
   )
@@ -103,7 +113,7 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
 }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
-  expect(await response.json()).toMatchObject({ ok: true, provider: 'pglite', migrationVersion: 7 })
+  expect(await response.json()).toMatchObject({ ok: true, provider: 'pglite', migrationVersion: 8 })
   let readCount = 0
   page.on('response', (response) => {
     if (

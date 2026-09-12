@@ -1,7 +1,17 @@
 import Image from 'next/image'
-import { Moon, Pencil, Thermometer, Toilet, Undo2, UtensilsCrossed } from 'lucide-react'
+import {
+  Clock3,
+  Moon,
+  Pencil,
+  Thermometer,
+  Toilet,
+  Undo2,
+  UserRound,
+  UtensilsCrossed,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { moodConfig, formatDate } from '@/lib/format'
+import { mealAmountLabels, pickupPersonLabels, stoolConditionLabels } from '@/lib/notebook-form'
 import type { NotebookEntry } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +35,7 @@ export function NotebookEntryCard({
 }) {
   const mood = moodConfig[entry.mood]
   const isTeacher = entry.author === 'teacher'
+  const hasStructuredHomeDetails = !isTeacher && Boolean(entry.eveningMeal)
 
   return (
     <article className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
@@ -78,32 +89,39 @@ export function NotebookEntryCard({
           style={{ backgroundColor: mood.color }}
         >
           <span className="text-lg leading-none">{mood.emoji}</span>
-          今日のごきげん：{mood.label}
+          {isTeacher ? '今日' : '今朝'}のごきげん：{mood.label}
         </div>
 
-        <dl className="grid gap-2">
-          {rows.map((row) => {
-            const Icon = row.icon
-            const value = entry[row.key]
-            return (
-              <div key={row.key} className="flex gap-2.5 rounded-2xl bg-muted/60 px-3 py-2">
-                <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
-                <div className="min-w-0">
-                  <dt className="text-xs font-semibold text-muted-foreground">{row.label}</dt>
-                  <dd className="text-sm leading-relaxed">
-                    {value}
-                    {'suffix' in row && row.suffix ? row.suffix : ''}
-                  </dd>
-                </div>
-              </div>
-            )
-          })}
-        </dl>
+        {hasStructuredHomeDetails ? (
+          <StructuredHomeDetails entry={entry} />
+        ) : (
+          <dl className="grid gap-2">
+            {rows.map((row) => {
+              const Icon = row.icon
+              const value = entry[row.key]
+              return (
+                <DetailRow key={row.key} icon={Icon} label={row.label}>
+                  {value}
+                  {'suffix' in row && row.suffix ? row.suffix : ''}
+                </DetailRow>
+              )
+            })}
+          </dl>
+        )}
 
+        {entry.condition && (
+          <div className="rounded-2xl bg-muted/60 px-3 py-2.5">
+            <p className="text-xs font-semibold text-muted-foreground">子どもの様子</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{entry.condition}</p>
+          </div>
+        )}
         {entry.note && (
-          <p className="whitespace-pre-wrap rounded-2xl bg-accent/40 px-3 py-2.5 text-sm leading-relaxed">
-            {entry.note}
-          </p>
+          <div className="rounded-2xl bg-accent/40 px-3 py-2.5">
+            <p className="text-xs font-semibold text-muted-foreground">
+              {isTeacher ? '今日のようす・連絡事項' : '連絡事項'}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{entry.note}</p>
+          </div>
         )}
 
         {entry.photo && (
@@ -113,5 +131,71 @@ export function NotebookEntryCard({
         )}
       </div>
     </article>
+  )
+}
+
+function StructuredHomeDetails({ entry }: { entry: NotebookEntry }) {
+  const eveningStool = entry.eveningStool
+    ? `${stoolConditionLabels[entry.eveningStool]}・${entry.eveningStoolCount ?? 0}回`
+    : '記入なし'
+  const morningStool = entry.morningStool
+    ? `${stoolConditionLabels[entry.morningStool]}・${entry.morningStoolCount ?? 0}回`
+    : '記入なし'
+  const breakfastAmount = entry.breakfastAmount
+    ? `（${mealAmountLabels[entry.breakfastAmount]}）`
+    : ''
+  const pickupPerson = entry.pickupPerson
+    ? entry.pickupPerson === 'other' && entry.pickupPersonName
+      ? entry.pickupPersonName
+      : pickupPersonLabels[entry.pickupPerson]
+    : '記入なし'
+
+  return (
+    <dl className="grid gap-2 sm:grid-cols-2">
+      <DetailRow icon={UtensilsCrossed} label="昨晩の夕食">
+        {entry.eveningMeal}
+      </DetailRow>
+      <DetailRow icon={Moon} label="就寝時間">
+        {entry.bedtime}
+      </DetailRow>
+      <DetailRow icon={Toilet} label="昨晩の排便">
+        {eveningStool}
+      </DetailRow>
+      <DetailRow icon={Clock3} label="起床時間">
+        {entry.wakeTime}
+      </DetailRow>
+      <DetailRow icon={UtensilsCrossed} label="今朝の朝食">
+        {entry.breakfast} {breakfastAmount}
+      </DetailRow>
+      <DetailRow icon={Toilet} label="今朝の排便">
+        {morningStool}
+      </DetailRow>
+      <DetailRow icon={Thermometer} label="今朝の体温">
+        {entry.temperature}℃
+      </DetailRow>
+      <DetailRow icon={UserRound} label="お迎え予定">
+        {pickupPerson}・{entry.pickupTime}
+      </DetailRow>
+    </dl>
+  )
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof Thermometer
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex gap-2.5 rounded-2xl bg-muted/60 px-3 py-2">
+      <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
+      <div className="min-w-0">
+        <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+        <dd className="text-sm leading-relaxed">{children}</dd>
+      </div>
+    </div>
   )
 }

@@ -427,6 +427,30 @@ const migrations = [
       ALTER TABLE facility ADD CONSTRAINT facility_slug_unique UNIQUE (slug);
     `,
   },
+  {
+    version: 8,
+    sql: `
+      ALTER TABLE notebook_entry ADD COLUMN evening_meal text;
+      ALTER TABLE notebook_entry ADD COLUMN bedtime time;
+      ALTER TABLE notebook_entry ADD COLUMN evening_stool text
+        CHECK (evening_stool IN ('none', 'normal', 'soft', 'hard', 'diarrhea'));
+      ALTER TABLE notebook_entry ADD COLUMN evening_stool_count integer
+        CHECK (evening_stool_count BETWEEN 0 AND 10);
+      ALTER TABLE notebook_entry ADD COLUMN wake_time time;
+      ALTER TABLE notebook_entry ADD COLUMN morning_stool text
+        CHECK (morning_stool IN ('none', 'normal', 'soft', 'hard', 'diarrhea'));
+      ALTER TABLE notebook_entry ADD COLUMN morning_stool_count integer
+        CHECK (morning_stool_count BETWEEN 0 AND 10);
+      ALTER TABLE notebook_entry ADD COLUMN breakfast text;
+      ALTER TABLE notebook_entry ADD COLUMN breakfast_amount text
+        CHECK (breakfast_amount IN ('all', 'most', 'half', 'little', 'none'));
+      ALTER TABLE notebook_entry ADD COLUMN condition text;
+      ALTER TABLE notebook_entry ADD COLUMN pickup_person text
+        CHECK (pickup_person IN ('mother', 'father', 'grandparent', 'other'));
+      ALTER TABLE notebook_entry ADD COLUMN pickup_person_name text;
+      ALTER TABLE notebook_entry ADD COLUMN pickup_time time;
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

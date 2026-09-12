@@ -273,7 +273,18 @@ export async function readNotebook(
           `SELECT entry.id, entry.child_id AS "childId", entry.business_date::text AS date,
              entry.author_role AS author, entry.author_name AS "authorName", entry.mood,
              entry.temperature::text AS temperature, entry.meals, entry.nap, entry.toilet,
-             entry.note, entry.photo, entry.status, entry.version,
+             entry.note, entry.evening_meal AS "eveningMeal",
+             to_char(entry.bedtime, 'HH24:MI') AS bedtime,
+             entry.evening_stool AS "eveningStool",
+             entry.evening_stool_count AS "eveningStoolCount",
+             to_char(entry.wake_time, 'HH24:MI') AS "wakeTime",
+             entry.morning_stool AS "morningStool",
+             entry.morning_stool_count AS "morningStoolCount",
+             entry.breakfast, entry.breakfast_amount AS "breakfastAmount",
+             entry.condition, entry.pickup_person AS "pickupPerson",
+             entry.pickup_person_name AS "pickupPersonName",
+             to_char(entry.pickup_time, 'HH24:MI') AS "pickupTime",
+             entry.photo, entry.status, entry.version,
              entry.author_user_id AS "authorId", entry.updated_at::text AS "updatedAt"
            FROM notebook_entry entry
            WHERE entry.facility_id = $1 AND entry.child_id = ANY($2::text[])
@@ -281,7 +292,9 @@ export async function readNotebook(
                   (entry.status = 'draft' AND entry.author_user_id = $3))
              AND ($4::date IS NULL OR entry.business_date >= $4)
              AND ($5::date IS NULL OR entry.business_date <= $5)
-             AND ($6 = '' OR entry.note ILIKE '%' || $6 || '%' OR entry.meals ILIKE '%' || $6 || '%')
+             AND ($6 = '' OR entry.note ILIKE '%' || $6 || '%' OR entry.meals ILIKE '%' || $6 || '%'
+                  OR entry.evening_meal ILIKE '%' || $6 || '%' OR entry.breakfast ILIKE '%' || $6 || '%'
+                  OR entry.condition ILIKE '%' || $6 || '%')
            ORDER BY entry.business_date DESC, entry.created_at DESC LIMIT $7 OFFSET $8`,
           [
             user.facilityId,
@@ -495,6 +508,9 @@ const temperature = z
   .regex(/^\d{2}(?:\.\d)?$/)
   .refine((value) => Number(value) >= 34 && Number(value) <= 42)
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+const stoolCondition = z.enum(['none', 'normal', 'soft', 'hard', 'diarrhea'])
+const mealAmount = z.enum(['all', 'most', 'half', 'little', 'none'])
+const pickupPerson = z.enum(['mother', 'father', 'grandparent', 'other'])
 const notebookFields = {
   childId: id,
   mood: z.enum(['genki', 'normal', 'tired', 'sick']),
@@ -504,6 +520,19 @@ const notebookFields = {
   toilet: text,
   note: text,
   photo: text.optional(),
+  eveningMeal: text.optional(),
+  bedtime: time.optional(),
+  eveningStool: stoolCondition.optional(),
+  eveningStoolCount: z.number().int().min(0).max(10).optional(),
+  wakeTime: time.optional(),
+  morningStool: stoolCondition.optional(),
+  morningStoolCount: z.number().int().min(0).max(10).optional(),
+  breakfast: text.optional(),
+  breakfastAmount: mealAmount.optional(),
+  condition: text.optional(),
+  pickupPerson: pickupPerson.optional(),
+  pickupPersonName: text.optional(),
+  pickupTime: time.optional(),
 }
 const noticeFields = {
   title: text.min(1),
@@ -551,6 +580,19 @@ const commandSchema = z.discriminatedUnion('type', [
             toilet: text.optional(),
             note: text.optional(),
             photo: text.nullable().optional(),
+            eveningMeal: text.optional(),
+            bedtime: time.optional(),
+            eveningStool: stoolCondition.optional(),
+            eveningStoolCount: z.number().int().min(0).max(10).optional(),
+            wakeTime: time.optional(),
+            morningStool: stoolCondition.optional(),
+            morningStoolCount: z.number().int().min(0).max(10).optional(),
+            breakfast: text.optional(),
+            breakfastAmount: mealAmount.optional(),
+            condition: text.optional(),
+            pickupPerson: pickupPerson.optional(),
+            pickupPersonName: text.optional(),
+            pickupTime: time.optional(),
             status: z.enum(['draft', 'published']).optional(),
           })
           .strict(),
@@ -948,10 +990,15 @@ export async function mutateNotebook(
       await transaction.query(
         `INSERT INTO notebook_entry
          (id, facility_id, child_id, business_date, author_user_id, author_role, author_name,
-          mood, temperature, meals, nap, toilet, note, photo, status, published_at,
+          mood, temperature, meals, nap, toilet, note, evening_meal, bedtime,
+          evening_stool, evening_stool_count, wake_time, morning_stool, morning_stool_count,
+          breakfast, breakfast_amount, condition, pickup_person, pickup_person_name, pickup_time,
+          photo, status, published_at,
           created_at, updated_at)
          VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, $9::numeric, $10, $11, $12,
-                 $13, $14, $15, CASE WHEN $15 = 'published' THEN $16::timestamptz END, $16, $16)`,
+                 $13, $14, $15::time, $16, $17, $18::time, $19, $20, $21, $22, $23,
+                 $24, $25, $26::time, $27, $28,
+                 CASE WHEN $28 = 'published' THEN $29::timestamptz END, $29, $29)`,
         [
           entryId,
           user.facilityId,
@@ -966,6 +1013,19 @@ export async function mutateNotebook(
           command.payload.nap,
           command.payload.toilet,
           command.payload.note,
+          command.payload.eveningMeal ?? null,
+          command.payload.bedtime ?? null,
+          command.payload.eveningStool ?? null,
+          command.payload.eveningStoolCount ?? null,
+          command.payload.wakeTime ?? null,
+          command.payload.morningStool ?? null,
+          command.payload.morningStoolCount ?? null,
+          command.payload.breakfast ?? null,
+          command.payload.breakfastAmount ?? null,
+          command.payload.condition ?? null,
+          command.payload.pickupPerson ?? null,
+          command.payload.pickupPersonName ?? null,
+          command.payload.pickupTime ?? null,
           command.payload.photo ?? null,
           status,
           now.toISOString(),
@@ -1013,6 +1073,16 @@ export async function mutateNotebook(
            status = COALESCE($10, status),
            published_at = CASE WHEN $10 = 'published' AND published_at IS NULL THEN $11 ELSE published_at END,
            withdrawn_at = CASE WHEN $10 = 'withdrawn' THEN $11 ELSE withdrawn_at END,
+           evening_meal = COALESCE($15, evening_meal), bedtime = COALESCE($16::time, bedtime),
+           evening_stool = COALESCE($17, evening_stool),
+           evening_stool_count = COALESCE($18, evening_stool_count),
+           wake_time = COALESCE($19::time, wake_time),
+           morning_stool = COALESCE($20, morning_stool),
+           morning_stool_count = COALESCE($21, morning_stool_count),
+           breakfast = COALESCE($22, breakfast), breakfast_amount = COALESCE($23, breakfast_amount),
+           condition = COALESCE($24, condition), pickup_person = COALESCE($25, pickup_person),
+           pickup_person_name = COALESCE($26, pickup_person_name),
+           pickup_time = COALESCE($27::time, pickup_time),
            version = version + 1, updated_at = $11
          WHERE id = $1 AND facility_id = $12 AND author_user_id = $13 AND version = $14
            AND status <> 'withdrawn'
@@ -1032,6 +1102,19 @@ export async function mutateNotebook(
           user.facilityId,
           user.id,
           command.payload.expectedVersion,
+          'eveningMeal' in patch ? (patch.eveningMeal ?? null) : null,
+          'bedtime' in patch ? (patch.bedtime ?? null) : null,
+          'eveningStool' in patch ? (patch.eveningStool ?? null) : null,
+          'eveningStoolCount' in patch ? (patch.eveningStoolCount ?? null) : null,
+          'wakeTime' in patch ? (patch.wakeTime ?? null) : null,
+          'morningStool' in patch ? (patch.morningStool ?? null) : null,
+          'morningStoolCount' in patch ? (patch.morningStoolCount ?? null) : null,
+          'breakfast' in patch ? (patch.breakfast ?? null) : null,
+          'breakfastAmount' in patch ? (patch.breakfastAmount ?? null) : null,
+          'condition' in patch ? (patch.condition ?? null) : null,
+          'pickupPerson' in patch ? (patch.pickupPerson ?? null) : null,
+          'pickupPersonName' in patch ? (patch.pickupPersonName ?? null) : null,
+          'pickupTime' in patch ? (patch.pickupTime ?? null) : null,
         ],
       )
       if (updated.rows.length === 0) throw new Error('Conflict')

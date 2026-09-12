@@ -133,6 +133,20 @@ describe('notebook repository', () => {
     await expect(
       mutateNotebook(database, parent, {
         ...entry,
+        commandId: 'invalid-bedtime',
+        payload: { ...entry.payload, bedtime: '25:00' },
+      }),
+    ).rejects.toThrow()
+    await expect(
+      mutateNotebook(database, parent, {
+        ...entry,
+        commandId: 'invalid-stool-count',
+        payload: { ...entry.payload, morningStoolCount: 11 },
+      }),
+    ).rejects.toThrow()
+    await expect(
+      mutateNotebook(database, parent, {
+        ...entry,
         commandId: 'invalid-temperature-range',
         payload: { ...entry.payload, temperature: '43.0' },
       }),
@@ -253,6 +267,19 @@ describe('notebook repository', () => {
         nap: '8時間',
         toilet: '通常',
         note: '下書き内容',
+        eveningMeal: 'ご飯、焼き魚、みそ汁',
+        bedtime: '21:00',
+        eveningStool: 'normal' as const,
+        eveningStoolCount: 1,
+        wakeTime: '06:30',
+        morningStool: 'none' as const,
+        morningStoolCount: 0,
+        breakfast: 'トースト、バナナ、牛乳',
+        breakfastAmount: 'most' as const,
+        condition: '元気に過ごしています',
+        pickupPerson: 'mother' as const,
+        pickupPersonName: '',
+        pickupTime: '17:30',
         status: 'draft' as const,
       },
     }
@@ -261,7 +288,21 @@ describe('notebook repository', () => {
     const draft = (await readNotebook(database, parent)).notebookEntries.find(
       (entry) => entry.note === '下書き内容',
     )!
-    expect(draft.status).toBe('draft')
+    expect(draft).toMatchObject({
+      status: 'draft',
+      eveningMeal: 'ご飯、焼き魚、みそ汁',
+      bedtime: '21:00',
+      eveningStool: 'normal',
+      eveningStoolCount: 1,
+      wakeTime: '06:30',
+      morningStool: 'none',
+      morningStoolCount: 0,
+      breakfast: 'トースト、バナナ、牛乳',
+      breakfastAmount: 'most',
+      condition: '元気に過ごしています',
+      pickupPerson: 'mother',
+      pickupTime: '17:30',
+    })
     expect(
       (await readNotebook(database, teacher)).notebookEntries.some(
         (entry) => entry.id === draft.id,

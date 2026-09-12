@@ -41,6 +41,9 @@ export interface Child {
 }
 
 export type Mood = 'genki' | 'normal' | 'tired' | 'sick'
+export type StoolCondition = 'none' | 'normal' | 'soft' | 'hard' | 'diarrhea'
+export type MealAmount = 'all' | 'most' | 'half' | 'little' | 'none'
+export type PickupPerson = 'mother' | 'father' | 'grandparent' | 'other'
 
 export interface NotebookEntry {
   id: string
@@ -54,6 +57,19 @@ export interface NotebookEntry {
   nap: string
   toilet: string
   note: string
+  eveningMeal?: string
+  bedtime?: string
+  eveningStool?: StoolCondition
+  eveningStoolCount?: number
+  wakeTime?: string
+  morningStool?: StoolCondition
+  morningStoolCount?: number
+  breakfast?: string
+  breakfastAmount?: MealAmount
+  condition?: string
+  pickupPerson?: PickupPerson
+  pickupPersonName?: string
+  pickupTime?: string
   photo?: string
   status?: ContentStatus
   version?: number
