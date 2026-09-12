@@ -1,6 +1,8 @@
 import { stdin, stdout } from 'node:process'
+import { loadEnvConfig } from '@next/env'
 import { createDatabase, migrateDatabase } from '../lib/db'
 import { setUserPassword } from '../lib/auth/user-repository'
+import { consumeSecretInput } from '../lib/auth/secret-input'
 import { getRuntimeConfig } from '../lib/runtime-config'
 
 async function readSecret(prompt: string): Promise<string> {
@@ -22,28 +24,22 @@ async function readSecret(prompt: string): Promise<string> {
       resolve(value)
     }
     const onData = (chunk: Buffer) => {
-      const input = chunk.toString('utf8')
-      if (input === '\u0003') {
+      const result = consumeSecretInput(value, chunk.toString('utf8'))
+      value = result.value
+      if (result.cancelled) {
         stdin.setRawMode(false)
         stdin.pause()
         reject(new Error('Cancelled'))
         return
       }
-      if (input === '\r' || input === '\n') {
-        finish()
-        return
-      }
-      if (input === '\u007f') {
-        value = value.slice(0, -1)
-        return
-      }
-      value += input
+      if (result.completed) finish()
     }
     stdin.on('data', onData)
   })
 }
 
 async function main() {
+  loadEnvConfig(process.cwd(), process.env.NODE_ENV !== 'production')
   const email = process.argv[2]
   if (!email) throw new Error('Usage: pnpm auth:set-password <email>')
   const config = getRuntimeConfig()

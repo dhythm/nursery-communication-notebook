@@ -12,19 +12,20 @@ import type { Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { facilityPagePath } from '@/lib/facility-path'
 import { signInWithCredentials } from '@/lib/auth/actions'
+import { publicDemoAccounts } from '@/lib/public-demo'
 import type { AuthMode } from '@/lib/runtime-config'
 
 const demoAccounts: Record<Role, { email: string; password: string; label: string; hint: string }> =
   {
     parent: {
-      email: 'sakura@example.com',
-      password: 'demo1234',
+      email: publicDemoAccounts[0].email,
+      password: publicDemoAccounts[0].password,
       label: '保護者としてログイン',
       hint: '田中さくら さん（ひなた・あおい の保護者）',
     },
     teacher: {
-      email: 'yamada@nijiiro.ed.jp',
-      password: 'demo1234',
+      email: publicDemoAccounts[1].email,
+      password: publicDemoAccounts[1].password,
       label: '保育士としてログイン',
       hint: '山田めぐみ 先生（そら組 担任）',
     },

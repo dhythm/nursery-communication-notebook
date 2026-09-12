@@ -103,3 +103,28 @@ jobs:
         if: ${{ needs.quality.result != 'success' || needs.typecheck.result != 'success' || needs.unit_test.result != 'success' || needs.e2e.result != 'success' || needs.build.result != 'success' }}
         run: exit 1
       - run: echo "All CI jobs succeeded"
+
+  reset_demo_database:
+    name: Reset public demo database
+    needs: verify
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: public-demo-database-reset
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Reset database and restore demo logins
+        env:
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          DEMO_RESET_CONFIRM: RESET_NURSERY_PUBLIC_DEMO
+        run: pnpm db:reset:demo

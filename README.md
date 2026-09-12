@@ -4,6 +4,17 @@ Next.js / React / TypeScript で作成した保育園向け連絡帳アプリで
 MIT Licenseで公開しているオープンソースソフトウェアです。
 Node.js 24 LTS（22.12以上）、pnpm 10.28.1を使用します。
 
+## 公開デモ
+
+[にじいろ連絡帳のデモを開く](https://nursery-communication-notebook.vercel.app/)
+
+| 利用者 | ログインID             | パスワード         |
+| ------ | ---------------------- | ------------------ |
+| 保護者 | `sakura@example.com`   | `DemoParent2026!`  |
+| 保育士 | `yamada@nijiiro.ed.jp` | `DemoTeacher2026!` |
+
+デモで追加・更新した情報は、mainブランチの更新時および保守作業で定期的に初期データへリセットされます。動作確認用の情報だけを入力し、個人情報や機密情報は入力しないでください。
+
 ## アプリ画面
 
 保護者は、子どもの様子や園からの連絡帳を確認・記入し、お知らせの詳細確認や園とのメッセージ交換ができます。
@@ -98,6 +109,12 @@ BOOTSTRAP_FACILITY_NAME=あおぞら保育園 \
 BOOTSTRAP_MANAGER_NAME=園長花子 \
 BOOTSTRAP_MANAGER_EMAIL=director@example.com \
 pnpm db:bootstrap
+```
+
+公開デモDBは、GitHub ActionsのRepository secret `DEMO_DATABASE_URL`へNeon Productionブランチの非プール接続文字列を登録すると、mainブランチへのpush後に自動で初期化されます。処理はデモ用の園以外が存在するDBを拒否します。手動実行する場合は、接続先を十分に確認して次を実行します。
+
+```sh
+DEMO_RESET_CONFIRM=RESET_NURSERY_PUBLIC_DEMO pnpm db:reset:demo
 ```
 
 `AUTH_MODE=skip` では初回は保護者として認証されます。トップページから保護者／保育士を切り替えられ、選択はHttpOnly Cookieに保存します。
@@ -206,6 +223,8 @@ ESLintはNext.jsプラグインの対応範囲に合わせ9系を使っていま
 初回起動・ビルドでは既存のGoogle Fonts設定によるネットワークアクセスが必要です。
 
 参考: [PGlite](https://pglite.dev/docs/)、[node-postgres](https://node-postgres.com/features/queries)、[TanStack Query](https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation)。
+
+問い合わせ先: [X（@dhythm_dev）](https://x.com/dhythm_dev)
 
 ## ライセンス
 

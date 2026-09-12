@@ -23,6 +23,20 @@ export default function HelpPage() {
           欠席、遅刻、お迎えの変更、その他の連絡はメッセージ画面から送信できます。
         </p>
       </section>
+      <section className="space-y-2">
+        <h2 className="font-display text-base font-bold">アプリについての問い合わせ</h2>
+        <p className="text-sm leading-7">
+          <a
+            href="https://x.com/dhythm_dev"
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-primary underline underline-offset-4"
+          >
+            X（@dhythm_dev）
+          </a>
+          へご連絡ください。
+        </p>
+      </section>
     </article>
   )
 }

@@ -22,6 +22,10 @@ test('setting pages have working parent navigation', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'ヘルプ', exact: true })).toBeVisible()
   await expect(page.getByText('お問い合わせ')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '園へ連絡する' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'X（@dhythm_dev）' })).toHaveAttribute(
+    'href',
+    'https://x.com/dhythm_dev',
+  )
 })
 
 test('a parent cannot open an unlinked child from a direct URL', async ({ page }) => {

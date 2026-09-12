@@ -33,6 +33,7 @@
     "db:setup:agent": "node --import tsx scripts/environment.ts agent setup",
     "db:check:agent": "node --import tsx scripts/environment.ts agent check",
     "db:setup:local": "node --import tsx scripts/environment.ts local setup",
+    "db:reset:demo": "node --import tsx scripts/reset-public-demo.ts",
     "auth:set-password": "node --import tsx scripts/set-password.ts",
     "data:backup": "node --import tsx scripts/data-maintenance.ts backup",
     "data:restore": "node --import tsx scripts/data-maintenance.ts restore",

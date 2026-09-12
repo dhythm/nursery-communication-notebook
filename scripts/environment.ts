@@ -15,6 +15,7 @@ async function main() {
     process.env.APP_ENV = 'development'
     process.env.AUTH_MODE = 'skip'
     process.env.DATABASE_PROVIDER = profile === 'agent' ? 'pglite' : 'postgres'
+    process.env.FILE_STORAGE_PROVIDER = 'local'
     if (profile === 'local') {
       process.env.DATABASE_URL ||= 'postgresql://nursery:nursery_local@127.0.0.1:54329/nursery'
     }
