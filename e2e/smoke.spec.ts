@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 const parentPath = '/nurseries/nijiiro/parent'
 const teacherPath = '/nurseries/nijiiro/teacher'
 
-test('the shared demo notice stays visible for parents and teachers', async ({ page }, testInfo) => {
+test('shared demo notice stays visible for parents and teachers', async ({ page }, testInfo) => {
   const demoNotice = page.getByRole('complementary', { name: 'デモ環境のお知らせ' })
 
   await page.goto('/')
