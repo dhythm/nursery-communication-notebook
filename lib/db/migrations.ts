@@ -532,6 +532,24 @@ const migrations = [
       );
     `,
   },
+  {
+    version: 16,
+    sql: `
+      CREATE TABLE message_template (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL REFERENCES facility(id) ON DELETE RESTRICT,
+        name text NOT NULL CHECK (length(btrim(name)) BETWEEN 1 AND 100),
+        body text NOT NULL CHECK (length(btrim(body)) BETWEEN 1 AND 2000),
+        created_by_user_id text NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+        display_order integer NOT NULL DEFAULT 1000,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (facility_id, id),
+        UNIQUE (facility_id, name)
+      );
+      CREATE INDEX message_template_facility
+        ON message_template(facility_id, created_at, id);
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

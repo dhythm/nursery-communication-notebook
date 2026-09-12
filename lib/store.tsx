@@ -17,6 +17,7 @@ import type {
   CalendarEvent,
   Child,
   Message,
+  MessageTemplate,
   NotebookEntry,
   NotebookAction,
   NotebookSnapshot,
@@ -38,6 +39,8 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   addMessage: (
     message: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>,
   ) => Promise<void>
+  createMessageTemplate: (template: Pick<MessageTemplate, 'name' | 'text'>) => Promise<void>
+  deleteMessageTemplate: (id: string) => Promise<void>
   addNotice: (notice: Omit<Notice, 'id' | 'date'>) => Promise<void>
   uploadFile: (
     file: File,
@@ -46,6 +49,7 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
     purpose?: 'shared' | 'notebook',
     targetChildId?: string,
   ) => Promise<string>
+  deleteFile: (id: string) => Promise<void>
   addEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>
   updateChild: (id: string, expectedVersion: number, patch: Partial<Child>) => Promise<void>
   saveNotebookEntry: (
@@ -95,6 +99,7 @@ const emptySnapshot: NotebookSnapshot = {
   notebookEntries: [],
   notices: [],
   messages: [],
+  messageTemplates: [],
   sharedFiles: [],
   calendarEvents: [],
   notificationPreferences: [],
@@ -168,6 +173,8 @@ function ApplicationStoreProvider({ children: nodes, initialUser, authMode }: St
     facilityName: (id) => snapshot.facilities.find((facility) => facility.id === id)?.name ?? '',
     addNotebookEntry: (payload) => mutate({ type: 'addNotebookEntry', payload }),
     addMessage: (payload) => mutate({ type: 'addMessage', payload }),
+    createMessageTemplate: (payload) => mutate({ type: 'createMessageTemplate', payload }),
+    deleteMessageTemplate: (id) => mutate({ type: 'deleteMessageTemplate', payload: { id } }),
     addNotice: (payload) => mutate({ type: 'addNotice', payload }),
     uploadFile: async (file, displayName, targetClassId, purpose = 'shared', targetChildId) => {
       const form = new FormData()
@@ -189,6 +196,22 @@ function ApplicationStoreProvider({ children: nodes, initialUser, authMode }: St
       const result = (await response.json()) as { id: string }
       await client.invalidateQueries({ queryKey: notebookQuery(queryScope).queryKey })
       return `/api/nurseries/${currentUser.facilitySlug}/files/${result.id}?inline=1`
+    },
+    deleteFile: async (id) => {
+      if (!currentUser) throw new Error('ログインしてください。')
+      const response = await fetch(
+        `/api/nurseries/${currentUser.facilitySlug}/files/${encodeURIComponent(id)}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ commandId: crypto.randomUUID() }),
+        },
+      )
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null
+        throw new Error(body?.error ?? '削除できませんでした。')
+      }
+      await client.invalidateQueries({ queryKey: notebookQuery(queryScope).queryKey })
     },
     addEvent: (payload) => mutate({ type: 'addEvent', payload }),
     updateChild: (id, expectedVersion, patch) =>

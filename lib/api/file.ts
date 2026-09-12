@@ -1,7 +1,7 @@
 import { getCurrentUser, getFacilityUser } from '@/lib/auth/server'
 import { getDatabase } from '@/lib/db'
 import { createFileStorage } from '@/lib/file-storage'
-import { getSharedFile, uploadSharedFile } from '@/lib/file-repository'
+import { deleteSharedFile, getSharedFile, uploadSharedFile } from '@/lib/file-repository'
 import { logError } from '@/lib/logger'
 import { getRuntimeConfig } from '@/lib/runtime-config'
 
@@ -98,5 +98,55 @@ export async function handleFileDownload(request: Request, facilitySlug: string,
     })
   } catch {
     return new Response('Not found', { status: 404 })
+  }
+}
+
+export async function handleFileDelete(request: Request, facilitySlug: string, id: string) {
+  if (!(await getCurrentUser()))
+    return Response.json({ error: 'Unauthorized' }, { status: 401, headers })
+  const user = await getFacilityUser(facilitySlug)
+  if (!user) return Response.json({ error: 'Not found' }, { status: 404, headers })
+  const requestUrl = new URL(request.url)
+  const origin = request.headers.get('origin')
+  const expectedOrigin = `${requestUrl.protocol}//${request.headers.get('host') ?? requestUrl.host}`
+  if (origin && origin !== expectedOrigin)
+    return Response.json({ error: 'Forbidden' }, { status: 403, headers })
+  if (!request.headers.get('content-type')?.includes('application/json'))
+    return Response.json({ error: 'JSON required' }, { status: 415, headers })
+
+  try {
+    const body = await request.text()
+    if (body.length > 1_000)
+      return Response.json({ error: 'Request too large' }, { status: 413, headers })
+    const commandId = String((JSON.parse(body) as { commandId?: unknown }).commandId ?? '')
+    await deleteSharedFile(
+      await getDatabase(),
+      createFileStorage(getRuntimeConfig()),
+      user,
+      id,
+      commandId,
+    )
+    return Response.json({ ok: true }, { headers })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    const status =
+      error instanceof SyntaxError || message === 'InvalidCommand'
+        ? 400
+        : message === 'Forbidden'
+          ? 403
+          : 503
+    if (status === 503)
+      logError('file_delete_failed', error, { userId: user.id, facilityId: user.facilityId })
+    return Response.json(
+      {
+        error:
+          status === 400
+            ? '入力内容を確認してください。'
+            : status === 403
+              ? 'Forbidden'
+              : '削除できませんでした。',
+      },
+      { status, headers },
+    )
   }
 }

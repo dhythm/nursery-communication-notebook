@@ -161,3 +161,74 @@ export async function getSharedFile(database: Database, user: User, fileId: stri
   )
   return result.rows[0]
 }
+
+export async function deleteSharedFile(
+  database: Database,
+  storage: FileStorage,
+  user: User,
+  fileId: string,
+  commandId: string,
+  now = new Date(),
+) {
+  if (user.role !== 'teacher') throw new Error('Forbidden')
+  if (!commandId || commandId.length > 100 || !fileId || fileId.length > 100)
+    throw new Error('InvalidCommand')
+  const membership = await database.query(
+    `SELECT 1 FROM facility_membership
+     WHERE facility_id = $1 AND user_id = $2 AND role = 'teacher' AND ended_on IS NULL`,
+    [user.facilityId, user.id],
+  )
+  if (membership.rows.length !== 1) throw new Error('Forbidden')
+
+  await database.transaction(async (transaction) => {
+    const receipt = await transaction.query(
+      `INSERT INTO mutation_receipt (actor_id, command_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING RETURNING command_id`,
+      [user.id, commandId],
+    )
+    if (receipt.rows.length === 0) return
+
+    const result = await transaction.query<{
+      storage_key: string
+      display_name: string
+      byte_size: number
+      target_class_id: string | null
+    }>(
+      `SELECT storage_key, display_name, byte_size, target_class_id
+       FROM file_object
+       WHERE id = $1 AND facility_id = $2 AND purpose = 'shared' AND status = 'available'
+       FOR UPDATE`,
+      [fileId, user.facilityId],
+    )
+    const file = result.rows[0]
+    if (!file) throw new Error('Forbidden')
+
+    await storage.delete(file.storage_key)
+    await transaction.query(
+      `UPDATE file_object
+       SET status = 'deleted', deleted_at = $3, updated_at = $3
+       WHERE id = $1 AND facility_id = $2`,
+      [fileId, user.facilityId, now.toISOString()],
+    )
+    await transaction.query(
+      `INSERT INTO audit_log
+       (id, facility_id, actor_user_id, actor_role, action, entity_type, entity_id,
+        command_id, before_data, occurred_at)
+       VALUES ($1, $2, $3, $4, 'deleted', 'file', $5, $6, $7::jsonb, $8)`,
+      [
+        randomUUID(),
+        user.facilityId,
+        user.id,
+        user.role,
+        fileId,
+        commandId,
+        JSON.stringify({
+          displayName: file.display_name,
+          byteSize: file.byte_size,
+          targetClassId: file.target_class_id,
+        }),
+        now.toISOString(),
+      ],
+    )
+  })
+}

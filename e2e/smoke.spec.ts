@@ -218,7 +218,7 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
   expect(await response.json()).toMatchObject({
     ok: true,
     provider: 'pglite',
-    migrationVersion: 15,
+    migrationVersion: 16,
   })
   let readCount = 0
   page.on('response', (response) => {
@@ -282,6 +282,7 @@ test('a teacher publishes an important notice and a parent confirms it', async (
 })
 
 test('a teacher uploads a real PDF that an authorized parent can download', async ({ page }) => {
+  const fileName = `guide-${Date.now()}.pdf`
   await page.goto('/')
   await page.getByRole('button', { name: '保育士', exact: true }).click()
   await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
@@ -290,19 +291,40 @@ test('a teacher uploads a real PDF that an authorized parent can download', asyn
   await page.getByRole('button', { name: '資料をアップロード' }).click()
   const dialog = page.getByRole('dialog', { name: '資料をアップロード' })
   await dialog.locator('input[type=file]').setInputFiles({
-    name: 'guide.pdf',
+    name: fileName,
     mimeType: 'application/pdf',
     buffer: Buffer.from('%PDF-1.7\nreal file'),
   })
   await dialog.getByRole('button', { name: 'アップロードして共有' }).click()
-  await expect(page.getByText('guide.pdf', { exact: true })).toBeVisible()
+  await expect(page.getByText(fileName, { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
   await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
   await page.goto(`${parentPath}/files`)
-  const download = page.getByRole('link', { name: 'guide.pdfをダウンロード' })
+  const download = page.getByRole('link', { name: `${fileName}をダウンロード` })
   const response = await page.request.get((await download.getAttribute('href')) ?? '')
   expect(response.status()).toBe(200)
   expect(await response.body()).toEqual(Buffer.from('%PDF-1.7\nreal file'))
+
+  await page.goto(`${parentPath}/settings`)
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
+  await page.getByRole('button', { name: '保育士', exact: true }).click()
+  await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
+  await expect(page).toHaveURL(teacherPath)
+  await page.goto(`${teacherPath}/files`)
+  await page.getByRole('button', { name: `${fileName}の公開を取り消す` }).click()
+  const deleteDialog = page.getByRole('dialog', { name: '資料の公開を取り消す' })
+  const deleted = page.waitForResponse(
+    (response) => response.request().method() === 'DELETE' && response.url().includes('/files/'),
+  )
+  await deleteDialog.getByRole('button', { name: '公開を取り消す' }).click()
+  expect((await deleted).status()).toBe(200)
+  await expect(deleteDialog).not.toBeVisible()
+  await expect(page.getByRole('button', { name: `${fileName}の公開を取り消す` })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
+  await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
+  await page.goto(`${parentPath}/files`)
+  await expect(page.getByRole('link', { name: `${fileName}をダウンロード` })).toHaveCount(0)
 })
 
 test('a teacher registers a class, guardian, and child', async ({ page }) => {

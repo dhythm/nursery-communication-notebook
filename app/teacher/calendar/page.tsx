@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { calendarDateParts, eventColor, formatDate, todayInTimeZone } from '@/lib/format'
 import { useStore } from '@/lib/store'
@@ -348,8 +349,8 @@ function AddEventModal({
         )}
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold">公開先</span>
-          <select
-            className="h-10 w-full rounded-xl border bg-background px-3"
+          <Select
+            className="h-10 rounded-xl px-3"
             value={targetClassId}
             onChange={(event) => setTargetClassId(event.target.value)}
           >
@@ -359,7 +360,7 @@ function AddEventModal({
                 {name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold">予定名</span>

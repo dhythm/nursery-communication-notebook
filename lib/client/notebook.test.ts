@@ -8,6 +8,7 @@ const snapshot = {
   notebookEntries: [],
   notices: [],
   messages: [],
+  messageTemplates: [],
   sharedFiles: [],
   calendarEvents: [],
 }
@@ -49,7 +50,10 @@ describe('notebook server cache', () => {
     await client.fetchQuery(notebookQuery(parentScope))
     await client.fetchQuery(notebookQuery(parentScope))
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith('/api/nurseries/nijiiro/notebook', expect.anything())
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/nurseries/nijiiro/notebook?page=1&limit=200',
+      expect.anything(),
+    )
     await client.fetchQuery(notebookQuery(teacherScope))
     expect(fetchMock).toHaveBeenCalledTimes(2)
     client.clear()

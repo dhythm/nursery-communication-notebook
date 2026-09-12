@@ -74,6 +74,122 @@ describe('notebook repository', () => {
       ).rows,
     ).toEqual([{ sender_user_id: parent.id, command_id: 'message-once' }])
   })
+  it('shares message templates within a facility and limits changes to teachers', async () => {
+    const initialTemplates = (await readNotebook(database, teacher)).messageTemplates
+    expect(initialTemplates.map((template) => template.name)).toEqual([
+      '本日の様子',
+      '体調確認',
+      '持ち物のお願い',
+    ])
+    expect((await readNotebook(database, parent)).messageTemplates).toEqual([])
+
+    await mutateNotebook(database, teacher, {
+      commandId: 'create-message-template',
+      type: 'createMessageTemplate',
+      payload: { name: 'お迎え確認', text: 'お迎え予定をご確認ください。' },
+    })
+    const created = (await readNotebook(database, teacher)).messageTemplates.find(
+      (template) => template.name === 'お迎え確認',
+    )!
+    expect(created).toMatchObject({
+      facilityId: teacher.facilityId,
+      text: 'お迎え予定をご確認ください。',
+    })
+    expect(created.id).not.toBe('create-message-template')
+
+    const colleague = { ...teacher, id: 'teacher-colleague', name: '同僚 先生' }
+    await database.query(`INSERT INTO app_user (id, name, email) VALUES ($1, $2, $3)`, [
+      colleague.id,
+      colleague.name,
+      'colleague@example.com',
+    ])
+    await database.query(
+      `INSERT INTO facility_membership
+       (facility_id, user_id, role, access_scope)
+       VALUES ($1, $2, 'teacher', 'facility')`,
+      [teacher.facilityId, colleague.id],
+    )
+    expect((await readNotebook(database, colleague)).messageTemplates).toContainEqual(created)
+
+    const otherFacilityTeacher = {
+      ...teacher,
+      id: 'other-facility-teacher',
+      name: '別園 先生',
+      email: 'teacher@himawari.example.com',
+      facilityId: 'f2',
+      facilitySlug: 'himawari',
+    }
+    await database.query(`INSERT INTO app_user (id, name, email) VALUES ($1, $2, $3)`, [
+      otherFacilityTeacher.id,
+      otherFacilityTeacher.name,
+      otherFacilityTeacher.email,
+    ])
+    await database.query(
+      `INSERT INTO facility_membership
+       (facility_id, user_id, role, access_scope)
+       VALUES ($1, $2, 'teacher', 'facility')`,
+      [otherFacilityTeacher.facilityId, otherFacilityTeacher.id],
+    )
+    expect((await readNotebook(database, otherFacilityTeacher)).messageTemplates).toEqual([])
+    await expect(
+      mutateNotebook(database, otherFacilityTeacher, {
+        commandId: 'other-facility-delete-message-template',
+        type: 'deleteMessageTemplate',
+        payload: { id: created.id },
+      }),
+    ).rejects.toThrow('Forbidden')
+
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'parent-create-message-template',
+        type: 'createMessageTemplate',
+        payload: { name: '不正', text: '作成できない' },
+      }),
+    ).rejects.toThrow('Forbidden')
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'parent-delete-message-template',
+        type: 'deleteMessageTemplate',
+        payload: { id: created.id },
+      }),
+    ).rejects.toThrow('Forbidden')
+
+    await mutateNotebook(database, colleague, {
+      commandId: 'delete-message-template',
+      type: 'deleteMessageTemplate',
+      payload: { id: created.id },
+    })
+    await mutateNotebook(database, colleague, {
+      commandId: 'delete-message-template',
+      type: 'deleteMessageTemplate',
+      payload: { id: created.id },
+    })
+    expect((await readNotebook(database, teacher)).messageTemplates).not.toContainEqual(created)
+  })
+
+  it('validates message template names and text', async () => {
+    await expect(
+      mutateNotebook(database, teacher, {
+        commandId: 'blank-message-template-name',
+        type: 'createMessageTemplate',
+        payload: { name: '   ', text: '本文' },
+      }),
+    ).rejects.toThrow()
+    await expect(
+      mutateNotebook(database, teacher, {
+        commandId: 'blank-message-template-text',
+        type: 'createMessageTemplate',
+        payload: { name: '名前', text: '   ' },
+      }),
+    ).rejects.toThrow()
+    await expect(
+      mutateNotebook(database, teacher, {
+        commandId: 'duplicate-message-template-name',
+        type: 'createMessageTemplate',
+        payload: { name: '本日の様子', text: '重複' },
+      }),
+    ).rejects.toThrow('Conflict')
+  })
   it('stores absence, late-arrival, and pickup plans as structured messages', async () => {
     await mutateNotebook(database, parent, {
       commandId: 'structured-absence-message',

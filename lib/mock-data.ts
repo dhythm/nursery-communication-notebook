@@ -3,6 +3,7 @@ import type {
   Child,
   Facility,
   Message,
+  MessageTemplate,
   NurseryClass,
   NotebookEntry,
   Notice,
@@ -12,6 +13,27 @@ import type {
 export const facilities: Facility[] = [
   { id: 'f1', slug: 'nijiiro', name: 'にじいろ保育園', logoColor: 'oklch(0.67 0.13 158)' },
   { id: 'f2', slug: 'himawari', name: 'ひまわり保育園', logoColor: 'oklch(0.78 0.13 75)' },
+]
+
+export const messageTemplates: MessageTemplate[] = [
+  {
+    id: 'template-f1-daily-update',
+    facilityId: 'f1',
+    name: '本日の様子',
+    text: '本日も元気に過ごしています。園での様子について、気になることがありましたらお知らせください。',
+  },
+  {
+    id: 'template-f1-health-check',
+    facilityId: 'f1',
+    name: '体調確認',
+    text: '本日、少し体調が気になる様子がありました。ご家庭でも様子を見ていただき、変化がありましたらお知らせください。',
+  },
+  {
+    id: 'template-f1-belongings',
+    facilityId: 'f1',
+    name: '持ち物のお願い',
+    text: '園で使用する持ち物についてご確認をお願いします。次回登園時にお持ちいただけますと助かります。',
+  },
 ]
 
 export const nurseryClasses: NurseryClass[] = [

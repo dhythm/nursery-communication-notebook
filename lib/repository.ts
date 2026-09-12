@@ -36,6 +36,18 @@ export async function seedNotebook(database: Database) {
         ],
       )
     }
+    for (const [index, template] of seed.messageTemplates.entries()) {
+      const creator = seed.users.find(
+        (user) => user.facilityId === template.facilityId && user.role === 'teacher',
+      )
+      if (!creator) continue
+      await transaction.query(
+        `INSERT INTO message_template
+         (id, facility_id, name, body, created_by_user_id, display_order)
+         VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+        [template.id, template.facilityId, template.name, template.text, creator.id, index * 10],
+      )
+    }
     for (const nurseryClass of seed.nurseryClasses) {
       await transaction.query(
         `INSERT INTO nursery_class (id, facility_id, name, school_year)
@@ -260,6 +272,7 @@ export async function readNotebook(
     notebookEntries: [],
     notices: [],
     messages: [],
+    messageTemplates: [],
     sharedFiles: [],
     calendarEvents: [],
     notificationPreferences: [],
@@ -329,6 +342,18 @@ export async function readNotebook(
         )
       ).rows.reverse()
     : []
+  snapshot.messageTemplates =
+    hasMembership && user.role === 'teacher'
+      ? (
+          await database.query<NotebookSnapshot['messageTemplates'][number]>(
+            `SELECT id, facility_id AS "facilityId", name, body AS text
+           FROM message_template
+           WHERE facility_id = $1
+           ORDER BY display_order, created_at, id`,
+            [user.facilityId],
+          )
+        ).rows
+      : []
   snapshot.notices = hasMembership
     ? (
         await database.query<NotebookSnapshot['notices'][number]>(
@@ -626,6 +651,18 @@ const commandSchema = z.discriminatedUnion('type', [
         scheduledTime: time.optional(),
       })
       .strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('createMessageTemplate'),
+    payload: z
+      .object({ name: text.trim().min(1).max(100), text: text.trim().min(1).max(2000) })
+      .strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('deleteMessageTemplate'),
+    payload: z.object({ id }).strict(),
   }),
   z.object({
     commandId,
@@ -939,6 +976,69 @@ export async function mutateNotebook(
 ) {
   const command = commandSchema.parse(input)
   const snapshot = await readNotebook(database, user)
+  if (command.type === 'createMessageTemplate') {
+    if (user.role !== 'teacher' || snapshot.facilities.length !== 1) throw new Error('Forbidden')
+    const templateId = randomUUID()
+    try {
+      await database.transaction(async (transaction) => {
+        if (!(await acceptCommand(transaction, user.id, command.commandId))) return
+        const duplicate = await transaction.query(
+          `SELECT id FROM message_template WHERE facility_id = $1 AND name = $2`,
+          [user.facilityId, command.payload.name],
+        )
+        if (duplicate.rows.length) throw new Error('Conflict')
+        await transaction.query(
+          `INSERT INTO message_template
+           (id, facility_id, name, body, created_by_user_id)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [templateId, user.facilityId, command.payload.name, command.payload.text, user.id],
+        )
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'created',
+          'message_template',
+          templateId,
+          null,
+          { name: command.payload.name, text: command.payload.text },
+          now,
+        )
+      })
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new Error('Conflict')
+      throw error
+    }
+    return
+  }
+  if (command.type === 'deleteMessageTemplate') {
+    if (user.role !== 'teacher' || snapshot.facilities.length !== 1) throw new Error('Forbidden')
+    await database.transaction(async (transaction) => {
+      if (!(await acceptCommand(transaction, user.id, command.commandId))) return
+      const existing = await transaction.query<{ id: string; name: string; text: string }>(
+        `SELECT id, name, body AS text FROM message_template
+         WHERE id = $1 AND facility_id = $2`,
+        [command.payload.id, user.facilityId],
+      )
+      if (existing.rows.length !== 1) throw new Error('Forbidden')
+      await transaction.query(`DELETE FROM message_template WHERE id = $1 AND facility_id = $2`, [
+        command.payload.id,
+        user.facilityId,
+      ])
+      await writeAudit(
+        transaction,
+        user,
+        command.commandId,
+        'deleted',
+        'message_template',
+        command.payload.id,
+        existing.rows[0],
+        null,
+        now,
+      )
+    })
+    return
+  }
   if (command.type === 'addMessage') {
     if (!snapshot.children.some((child) => child.id === command.payload.childId))
       throw new Error('Forbidden')
@@ -1946,4 +2046,13 @@ export async function mutateNotebook(
     })
     return
   }
+}
+
+function isUniqueViolation(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === '23505'
+  )
 }

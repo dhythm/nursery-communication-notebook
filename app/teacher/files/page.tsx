@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Download, FileText, ImageIcon, Upload, Users } from 'lucide-react'
+import { Download, FileText, ImageIcon, Trash2, Upload, Users } from 'lucide-react'
 import { PageTitle } from '@/components/teacher/page-title'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,9 +22,26 @@ const kindColor: Record<SharedFile['kind'], string> = {
 }
 
 export default function TeacherFiles() {
-  const { currentUser, children, sharedFiles, uploadFile } = useStore()
+  const { currentUser, children, sharedFiles, uploadFile, deleteFile } = useStore()
   const { facilitySlug } = useParams<{ facilitySlug: string }>()
   const [open, setOpen] = useState(false)
+  const [fileToDelete, setFileToDelete] = useState<SharedFile | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function confirmDelete() {
+    if (!fileToDelete || isDeleting) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteFile(fileToDelete.id)
+      setFileToDelete(null)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : '削除できませんでした。')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const files = useMemo(
     () =>
@@ -75,13 +92,28 @@ export default function TeacherFiles() {
                   <span className="text-xs text-muted-foreground">{file.uploadedBy}</span>
                 </div>
               </div>
-              <a
-                href={facilityApiPath(facilitySlug, `/files/${file.id}`)}
-                aria-label="ダウンロード"
-                className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Download className="size-5" />
-              </a>
+              <div className="flex items-center gap-1">
+                <a
+                  href={facilityApiPath(facilitySlug, `/files/${file.id}`)}
+                  aria-label={`${file.name}をダウンロード`}
+                  className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Download className="size-5" />
+                </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`${file.name}の公開を取り消す`}
+                  className="rounded-full text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    setDeleteError(null)
+                    setFileToDelete(file)
+                  }}
+                >
+                  <Trash2 className="size-5" />
+                </Button>
+              </div>
             </Card>
           )
         })}
@@ -93,6 +125,40 @@ export default function TeacherFiles() {
         classes={classes}
         onUpload={uploadFile}
       />
+      <Modal
+        open={fileToDelete !== null}
+        onClose={() => !isDeleting && setFileToDelete(null)}
+        title="資料の公開を取り消す"
+        footer={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="h-11 flex-1 rounded-2xl"
+              disabled={isDeleting}
+              onClick={() => setFileToDelete(null)}
+            >
+              キャンセル
+            </Button>
+            <Button
+              variant="destructive"
+              className="h-11 flex-[2] rounded-2xl font-bold"
+              disabled={isDeleting}
+              onClick={() => void confirmDelete()}
+            >
+              公開を取り消す
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm font-semibold">{fileToDelete?.name}</p>
+          {deleteError && (
+            <p role="alert" className="text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

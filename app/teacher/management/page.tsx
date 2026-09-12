@@ -6,10 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { useStore } from '@/lib/store'
 import type { Role } from '@/lib/types'
-
-const selectClass = 'h-10 w-full rounded-xl border border-border bg-background px-3 text-sm'
 
 export default function ManagementPage() {
   return (
@@ -143,14 +142,14 @@ function MemberForm() {
         </label>
         <label className="block text-sm font-semibold">
           区分
-          <select
-            className={`${selectClass} mt-1`}
+          <Select
+            className="mt-1 h-10 rounded-xl px-3 text-sm"
             value={role}
             onChange={(event) => setRole(event.target.value as Role)}
           >
             <option value="parent">保護者</option>
             <option value="teacher">職員</option>
-          </select>
+          </Select>
         </label>
         {role === 'teacher' && (
           <label className="block text-sm font-semibold">
@@ -239,8 +238,8 @@ function ChildForm() {
         </label>
         <label className="block text-sm font-semibold">
           クラス
-          <select
-            className={`${selectClass} mt-1`}
+          <Select
+            className="mt-1 h-10 rounded-xl px-3 text-sm"
             value={classId}
             onChange={(event) => setClassId(event.target.value)}
             required
@@ -251,12 +250,12 @@ function ChildForm() {
                 {item.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block text-sm font-semibold">
           保護者
-          <select
-            className={`${selectClass} mt-1`}
+          <Select
+            className="mt-1 h-10 rounded-xl px-3 text-sm"
             value={guardianId}
             onChange={(event) => setGuardianId(event.target.value)}
           >
@@ -266,7 +265,7 @@ function ChildForm() {
                 {member.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <Button type="submit" className="w-full" disabled={saving}>
           入園登録
@@ -288,9 +287,9 @@ function ChildrenSection() {
               <p className="font-semibold">{child.name}</p>
               <p className="text-xs text-muted-foreground">{child.kana}</p>
             </div>
-            <select
+            <Select
               aria-label={`${child.name}のクラス`}
-              className="h-9 rounded-xl border bg-background px-3 text-sm"
+              className="h-9 rounded-xl px-3 text-sm"
               value={child.classId}
               onChange={(event) =>
                 void moveChildClass(child.id, child.version ?? 1, event.target.value)
@@ -301,7 +300,7 @@ function ChildrenSection() {
                   {item.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <Button
               variant="outline"
               className="text-destructive"
@@ -378,9 +377,9 @@ function MemberRow({
         </div>
         <p className="text-xs text-muted-foreground">{member.email}</p>
       </div>
-      <select
+      <Select
         aria-label={`${member.name}の${member.role === 'teacher' ? '担当クラス' : '園児'}`}
-        className="h-9 rounded-xl border bg-background px-3 text-sm"
+        className="h-9 rounded-xl px-3 text-sm"
         value={targetId}
         onChange={(event) => setTargetId(event.target.value)}
       >
@@ -390,7 +389,7 @@ function MemberRow({
             {item.name}
           </option>
         ))}
-      </select>
+      </Select>
       <Button
         variant="outline"
         disabled={!targetId}

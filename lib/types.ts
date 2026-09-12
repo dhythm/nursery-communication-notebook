@@ -113,6 +113,13 @@ export interface Message {
   scheduledTime?: string
 }
 
+export interface MessageTemplate {
+  id: string
+  facilityId: string
+  name: string
+  text: string
+}
+
 export interface SharedFile {
   id: string
   facilityId: string
@@ -187,6 +194,7 @@ export interface NotebookSnapshot {
   notebookEntries: NotebookEntry[]
   notices: Notice[]
   messages: Message[]
+  messageTemplates: MessageTemplate[]
   sharedFiles: SharedFile[]
   calendarEvents: CalendarEvent[]
   notificationPreferences: NotificationPreference[]
@@ -205,6 +213,8 @@ export type NotebookAction =
       type: 'addMessage'
       payload: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>
     }
+  | { type: 'createMessageTemplate'; payload: { name: string; text: string } }
+  | { type: 'deleteMessageTemplate'; payload: { id: string } }
   | { type: 'addNotice'; payload: Omit<Notice, 'id' | 'date'> }
   | { type: 'addEvent'; payload: Omit<CalendarEvent, 'id'> }
   | {

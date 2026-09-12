@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
+import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
@@ -181,20 +182,20 @@ function NoticeEditor({
         </label>
         <label className="block text-sm font-semibold">
           分類
-          <select
-            className="mt-1 h-10 w-full rounded-xl border bg-background px-3"
+          <Select
+            className="mt-1 h-10 rounded-xl px-3"
             value={category}
             onChange={(event) => setCategory(event.target.value as Notice['category'])}
           >
             {['重要', 'イベント', '保健', '給食', 'お願い'].map((item) => (
               <option key={item}>{item}</option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block text-sm font-semibold">
           配信先
-          <select
-            className="mt-1 h-10 w-full rounded-xl border bg-background px-3"
+          <Select
+            className="mt-1 h-10 rounded-xl px-3"
             value={targetClassId}
             onChange={(event) => setTargetClassId(event.target.value)}
           >
@@ -204,7 +205,7 @@ function NoticeEditor({
                 {name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex items-center gap-2 text-sm font-semibold">
           <input
