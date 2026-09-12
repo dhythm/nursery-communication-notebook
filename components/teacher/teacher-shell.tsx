@@ -34,9 +34,8 @@ export function TeacherShell({ children }: { children: ReactNode }) {
 
   if (!currentUser || currentUser.role !== 'teacher') return null
 
-  function handleLogout() {
-    logout()
-    router.replace('/')
+  async function handleLogout() {
+    await logout()
   }
 
   return (

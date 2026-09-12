@@ -223,7 +223,7 @@ function AddEventModal({
   open: boolean
   onClose: () => void
   defaultDate: string
-  onAdd: (e: Omit<CalendarEvent, 'id' | 'facilityId'>) => void
+  onAdd: (e: Omit<CalendarEvent, 'id' | 'facilityId'>) => Promise<void>
 }) {
   const [title, setTitle] = useState('')
   const [type, setType] = useState<EventType>('行事')
@@ -231,19 +231,31 @@ function AddEventModal({
   const [time, setTime] = useState('')
   const [memo, setMemo] = useState('')
 
-  function submit() {
-    onAdd({
-      title: title.trim() || '新しい予定',
-      type,
-      date: date || defaultDate,
-      time: time || undefined,
-      memo: memo || undefined,
-    })
-    setTitle('')
-    setType('行事')
-    setTime('')
-    setMemo('')
-    onClose()
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (isSaving) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      await onAdd({
+        title: title.trim() || '新しい予定',
+        type,
+        date: date || defaultDate,
+        time: time || undefined,
+        memo: memo || undefined,
+      })
+      setTitle('')
+      setType('行事')
+      setTime('')
+      setMemo('')
+      onClose()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '保存できませんでした')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -257,13 +269,22 @@ function AddEventModal({
           <Button variant="outline" className="h-11 flex-1 rounded-2xl" onClick={onClose}>
             キャンセル
           </Button>
-          <Button className="h-11 flex-[2] rounded-2xl font-bold" onClick={submit}>
+          <Button
+            className="h-11 flex-[2] rounded-2xl font-bold"
+            onClick={submit}
+            disabled={isSaving}
+          >
             予定を追加
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold">予定名</span>
           <Input

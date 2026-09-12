@@ -111,27 +111,39 @@ function UploadModal({
   open: boolean
   onClose: () => void
   classes: string[]
-  onUpload: (file: Omit<SharedFile, 'id' | 'facilityId' | 'date' | 'uploadedBy'>) => void
+  onUpload: (file: Omit<SharedFile, 'id' | 'facilityId' | 'date' | 'uploadedBy'>) => Promise<void>
 }) {
   const [name, setName] = useState('')
   const [kind, setKind] = useState<SharedFile['kind']>('PDF')
   const [target, setTarget] = useState<'all' | string>('all')
 
-  function submit() {
-    const finalName = name.trim() || '無題の資料'
-    const withExt =
-      kind === 'PDF' && !finalName.toLowerCase().endsWith('.pdf') ? `${finalName}.pdf` : finalName
-    onUpload({
-      name: withExt,
-      kind,
-      sizeLabel: `${(Math.random() * 2 + 0.3).toFixed(1)} MB`,
-      sharedWith: target === 'all' ? 'all' : [],
-      className: target === 'all' ? undefined : target,
-    })
-    setName('')
-    setKind('PDF')
-    setTarget('all')
-    onClose()
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (isSaving) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      const finalName = name.trim() || '無題の資料'
+      const withExt =
+        kind === 'PDF' && !finalName.toLowerCase().endsWith('.pdf') ? `${finalName}.pdf` : finalName
+      await onUpload({
+        name: withExt,
+        kind,
+        sizeLabel: `${(Math.random() * 2 + 0.3).toFixed(1)} MB`,
+        sharedWith: target === 'all' ? 'all' : [],
+        className: target === 'all' ? undefined : target,
+      })
+      setName('')
+      setKind('PDF')
+      setTarget('all')
+      onClose()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '保存できませんでした')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -145,13 +157,22 @@ function UploadModal({
           <Button variant="outline" className="h-11 flex-1 rounded-2xl" onClick={onClose}>
             キャンセル
           </Button>
-          <Button className="h-11 flex-[2] rounded-2xl font-bold" onClick={submit}>
+          <Button
+            className="h-11 flex-[2] rounded-2xl font-bold"
+            onClick={submit}
+            disabled={isSaving}
+          >
             アップロードして共有
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div className="flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-border bg-muted/40 px-4 py-8 text-center">
           <Upload className="size-8 text-muted-foreground" />
           <p className="text-sm font-semibold">ファイルをドラッグ＆ドロップ</p>

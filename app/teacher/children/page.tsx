@@ -158,20 +158,32 @@ function EditChildModal({
   open: boolean
   onClose: () => void
   child: { allergies: string[]; notes: string }
-  onSave: (patch: { allergies: string[]; notes: string }) => void
+  onSave: (patch: { allergies: string[]; notes: string }) => Promise<void>
 }) {
   const [allergies, setAllergies] = useState(child.allergies.join('、'))
   const [notes, setNotes] = useState(child.notes)
 
-  function save() {
-    onSave({
-      allergies: allergies
-        .split(/[、,\s]+/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-      notes,
-    })
-    onClose()
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save() {
+    if (isSaving) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      await onSave({
+        allergies: allergies
+          .split(/[、,\s]+/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+        notes,
+      })
+      onClose()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '保存できませんでした')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -184,13 +196,22 @@ function EditChildModal({
           <Button variant="outline" className="h-11 flex-1 rounded-2xl" onClick={onClose}>
             キャンセル
           </Button>
-          <Button className="h-11 flex-[2] rounded-2xl font-bold" onClick={save}>
+          <Button
+            className="h-11 flex-[2] rounded-2xl font-bold"
+            onClick={save}
+            disabled={isSaving}
+          >
             保存する
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold">
             アレルギー（読点や空白で区切り）

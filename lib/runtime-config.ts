@@ -1,0 +1,47 @@
+export interface RuntimeConfig {
+  appEnv: 'development' | 'test' | 'production'
+  authMode: 'skip'
+  databaseProvider: 'postgres' | 'pglite'
+  databaseUrl?: string
+  pgliteDataDir: string
+}
+
+/** Server configuration. No credentials or environment values are sent to the browser. */
+export function getRuntimeConfig(
+  environment: Record<string, string | undefined> = process.env,
+): RuntimeConfig {
+  const appEnv = environment.APP_ENV ?? 'production'
+  if (appEnv !== 'development' && appEnv !== 'test' && appEnv !== 'production') {
+    throw new Error('APP_ENV must be development, test, or production')
+  }
+  const authMode = environment.AUTH_MODE
+  if (authMode !== 'skip') {
+    throw new Error('AUTH_MODE must be skip; production authentication is not implemented yet')
+  }
+  if (appEnv === 'production' || environment.VERCEL_ENV === 'production') {
+    throw new Error('Authentication skip is forbidden in production')
+  }
+  const databaseProvider = environment.DATABASE_PROVIDER ?? 'postgres'
+  if (databaseProvider !== 'postgres' && databaseProvider !== 'pglite') {
+    throw new Error('DATABASE_PROVIDER must be postgres or pglite')
+  }
+  const databaseUrl = environment.DATABASE_URL
+  if (databaseProvider === 'postgres') {
+    let url: URL
+    try {
+      url = new URL(databaseUrl ?? '')
+    } catch {
+      throw new Error('DATABASE_URL must be a PostgreSQL connection URL')
+    }
+    if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+      throw new Error('DATABASE_URL must be a PostgreSQL connection URL')
+    }
+  }
+  return {
+    appEnv,
+    authMode,
+    databaseProvider,
+    databaseUrl: databaseProvider === 'postgres' ? databaseUrl : undefined,
+    pgliteDataDir: environment.PGLITE_DATA_DIR || '.data/pglite',
+  }
+}

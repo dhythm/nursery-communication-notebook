@@ -1,3 +1,5 @@
+import { getCurrentUser } from '@/lib/auth/server'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { M_PLUS_Rounded_1c, Zen_Maru_Gothic } from 'next/font/google'
@@ -32,15 +34,22 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const { authMode } = getRuntimeConfig()
+  const currentUser = await getCurrentUser()
+  const content = (
+    <StoreProvider initialUser={currentUser} authMode={authMode}>
+      {children}
+    </StoreProvider>
+  )
   return (
     <html lang="ja" className={`${mplus.variable} ${zenMaru.variable} bg-background`}>
       <body className="font-sans antialiased">
-        <StoreProvider>{children}</StoreProvider>
+        {content}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

@@ -87,3 +87,21 @@ export interface CalendarEvent {
   time?: string
   memo?: string
 }
+
+export interface NotebookSnapshot {
+  facilities: Facility[]
+  children: Child[]
+  notebookEntries: NotebookEntry[]
+  notices: Notice[]
+  messages: Message[]
+  sharedFiles: SharedFile[]
+  calendarEvents: CalendarEvent[]
+}
+
+export type NotebookCommand =
+  | { type: 'addNotebookEntry'; payload: Omit<NotebookEntry, 'id'> }
+  | { type: 'addMessage'; payload: Omit<Message, 'id'> }
+  | { type: 'addNotice'; payload: Omit<Notice, 'id'> }
+  | { type: 'addFile'; payload: Omit<SharedFile, 'id'> }
+  | { type: 'addEvent'; payload: Omit<CalendarEvent, 'id'> }
+  | { type: 'updateChild'; payload: { id: string; patch: Partial<Child> } }

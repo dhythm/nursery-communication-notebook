@@ -29,26 +29,38 @@ export function TeacherEntryDialog({
   const [toilet, setToilet] = useState('')
   const [note, setNote] = useState('')
 
-  function submit() {
-    addNotebookEntry({
-      childId: child.id,
-      date: '2026-09-12',
-      author: 'teacher',
-      authorName: currentUser?.name ?? '担任',
-      mood,
-      temperature,
-      meals: meals || '記入なし',
-      nap: nap || '記入なし',
-      toilet: toilet || '記入なし',
-      note,
-    })
-    setMood('genki')
-    setTemperature('36.5')
-    setMeals('')
-    setNap('')
-    setToilet('')
-    setNote('')
-    onClose()
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (isSaving) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      await addNotebookEntry({
+        childId: child.id,
+        date: '2026-09-12',
+        author: 'teacher',
+        authorName: currentUser?.name ?? '担任',
+        mood,
+        temperature,
+        meals: meals || '記入なし',
+        nap: nap || '記入なし',
+        toilet: toilet || '記入なし',
+        note,
+      })
+      setMood('genki')
+      setTemperature('36.5')
+      setMeals('')
+      setNap('')
+      setToilet('')
+      setNote('')
+      onClose()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '保存できませんでした')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -62,13 +74,22 @@ export function TeacherEntryDialog({
           <Button variant="outline" className="h-11 flex-1 rounded-2xl" onClick={onClose}>
             キャンセル
           </Button>
-          <Button className="h-11 flex-[2] rounded-2xl font-bold" onClick={submit}>
+          <Button
+            className="h-11 flex-[2] rounded-2xl font-bold"
+            onClick={submit}
+            disabled={isSaving}
+          >
             保護者へ送信
           </Button>
         </div>
       }
     >
       <div className="space-y-5">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div>
           <p className="mb-2 text-sm font-semibold">今日のごきげん・体調</p>
           <div className="grid grid-cols-4 gap-2">

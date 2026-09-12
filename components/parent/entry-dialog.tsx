@@ -38,21 +38,33 @@ export function EntryDialog({
     setNote('')
   }
 
-  function submit() {
-    addNotebookEntry({
-      childId: child.id,
-      date: '2026-09-12',
-      author: 'parent',
-      authorName: currentUser?.name ?? '保護者',
-      mood,
-      temperature,
-      meals: meals || '記入なし',
-      nap: nap || '記入なし',
-      toilet: toilet || '記入なし',
-      note: note || '',
-    })
-    reset()
-    onClose()
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (isSaving) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      await addNotebookEntry({
+        childId: child.id,
+        date: '2026-09-12',
+        author: 'parent',
+        authorName: currentUser?.name ?? '保護者',
+        mood,
+        temperature,
+        meals: meals || '記入なし',
+        nap: nap || '記入なし',
+        toilet: toilet || '記入なし',
+        note: note || '',
+      })
+      reset()
+      onClose()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '保存できませんでした')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -66,13 +78,22 @@ export function EntryDialog({
           <Button variant="outline" className="h-11 flex-1 rounded-2xl" onClick={onClose}>
             キャンセル
           </Button>
-          <Button className="h-11 flex-[2] rounded-2xl font-bold" onClick={submit}>
+          <Button
+            className="h-11 flex-[2] rounded-2xl font-bold"
+            onClick={submit}
+            disabled={isSaving}
+          >
             この内容で送信
           </Button>
         </div>
       }
     >
       <div className="space-y-5">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div>
           <p className="mb-2 text-sm font-semibold">きげん・体調</p>
           <div className="grid grid-cols-4 gap-2">

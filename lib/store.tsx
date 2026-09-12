@@ -1,139 +1,120 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import {
-  calendarEvents as seedEvents,
-  children as seedChildren,
-  facilities,
-  messages as seedMessages,
-  notebookEntries as seedEntries,
-  notices as seedNotices,
-  sharedFiles as seedFiles,
-  users,
-} from './mock-data'
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
+import { createContext, useContext, useState, type ReactNode } from 'react'
+import { selectSkipRole, clearSkipRole } from '@/lib/auth/actions'
+import { notebookMutation, notebookQuery } from '@/lib/client/notebook'
 import type {
   CalendarEvent,
   Child,
   Message,
   NotebookEntry,
+  NotebookSnapshot,
   Notice,
   Role,
   SharedFile,
   User,
 } from './types'
 
-interface StoreValue {
+interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   currentUser: User | null
-  login: (role: Role) => void
-  logout: () => void
+  login: (role: Role) => Promise<void>
+  logout: () => Promise<void>
   facilityName: (id: string) => string
-  children: Child[]
-  notebookEntries: NotebookEntry[]
-  notices: Notice[]
-  messages: Message[]
-  sharedFiles: SharedFile[]
-  calendarEvents: CalendarEvent[]
-  addNotebookEntry: (entry: Omit<NotebookEntry, 'id'>) => void
-  addMessage: (msg: Omit<Message, 'id'>) => void
-  addNotice: (notice: Omit<Notice, 'id'>) => void
-  addFile: (file: Omit<SharedFile, 'id'>) => void
-  addEvent: (event: Omit<CalendarEvent, 'id'>) => void
-  updateChild: (id: string, patch: Partial<Child>) => void
+  addNotebookEntry: (entry: Omit<NotebookEntry, 'id'>) => Promise<void>
+  addMessage: (message: Omit<Message, 'id'>) => Promise<void>
+  addNotice: (notice: Omit<Notice, 'id'>) => Promise<void>
+  addFile: (file: Omit<SharedFile, 'id'>) => Promise<void>
+  addEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>
+  updateChild: (id: string, patch: Partial<Child>) => Promise<void>
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
+const emptySnapshot: NotebookSnapshot = {
+  facilities: [],
+  children: [],
+  notebookEntries: [],
+  notices: [],
+  messages: [],
+  sharedFiles: [],
+  calendarEvents: [],
+}
+interface StoreProps {
+  children: ReactNode
+  initialUser: User | null
+  authMode: 'skip'
+}
 
-const uid = () => Math.random().toString(36).slice(2, 10)
+export function StoreProvider(props: StoreProps) {
+  const [client] = useState(() => new QueryClient())
+  return (
+    <QueryClientProvider client={client}>
+      <ApplicationStoreProvider {...props} />
+    </QueryClientProvider>
+  )
+}
 
-export function StoreProvider({ children: nodes }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
-  const [childList, setChildList] = useState<Child[]>(seedChildren)
-  const [notebookEntries, setEntries] = useState<NotebookEntry[]>(seedEntries)
-  const [notices, setNotices] = useState<Notice[]>(seedNotices)
-  const [messages, setMessages] = useState<Message[]>(seedMessages)
-  const [sharedFiles, setFiles] = useState<SharedFile[]>(seedFiles)
-  const [calendarEvents, setEvents] = useState<CalendarEvent[]>(seedEvents)
+function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) {
+  const [currentUser, setCurrentUser] = useState(initialUser)
+  const client = useQueryClient()
+  const router = useRouter()
+  const query = useQuery({ ...notebookQuery(currentUser?.id ?? ''), enabled: currentUser !== null })
+  const mutation = useMutation(notebookMutation(client, currentUser?.id ?? ''))
+  const snapshot = query.data ?? emptySnapshot
 
-  const login = useCallback((role: Role) => {
-    const user = users.find((u) => u.role === role) ?? null
+  const login = async (role: Role) => {
+    const user = await selectSkipRole(role)
+    client.clear()
     setCurrentUser(user)
-  }, [])
+  }
+  const logout = async () => {
+    const user = await clearSkipRole()
+    setCurrentUser(user)
+    client.clear()
+    router.replace('/')
+    router.refresh()
+  }
 
-  const logout = useCallback(() => setCurrentUser(null), [])
+  const value: StoreValue = {
+    ...snapshot,
+    currentUser,
+    login,
+    logout,
+    facilityName: (id) => snapshot.facilities.find((facility) => facility.id === id)?.name ?? '',
+    addNotebookEntry: (payload) => mutation.mutateAsync({ type: 'addNotebookEntry', payload }),
+    addMessage: (payload) => mutation.mutateAsync({ type: 'addMessage', payload }),
+    addNotice: (payload) => mutation.mutateAsync({ type: 'addNotice', payload }),
+    addFile: (payload) => mutation.mutateAsync({ type: 'addFile', payload }),
+    addEvent: (payload) => mutation.mutateAsync({ type: 'addEvent', payload }),
+    updateChild: (id, patch) =>
+      mutation.mutateAsync({ type: 'updateChild', payload: { id, patch } }),
+  }
 
-  const facilityName = useCallback(
-    (id: string) => facilities.find((f) => f.id === id)?.name ?? '',
-    [],
-  )
-
-  const addNotebookEntry = useCallback((entry: Omit<NotebookEntry, 'id'>) => {
-    setEntries((prev) => [{ ...entry, id: uid() }, ...prev])
-  }, [])
-
-  const addMessage = useCallback((msg: Omit<Message, 'id'>) => {
-    setMessages((prev) => [...prev, { ...msg, id: uid() }])
-  }, [])
-
-  const addNotice = useCallback((notice: Omit<Notice, 'id'>) => {
-    setNotices((prev) => [{ ...notice, id: uid() }, ...prev])
-  }, [])
-
-  const addFile = useCallback((file: Omit<SharedFile, 'id'>) => {
-    setFiles((prev) => [{ ...file, id: uid() }, ...prev])
-  }, [])
-
-  const addEvent = useCallback((event: Omit<CalendarEvent, 'id'>) => {
-    setEvents((prev) => [...prev, { ...event, id: uid() }])
-  }, [])
-
-  const updateChild = useCallback((id: string, patch: Partial<Child>) => {
-    setChildList((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
-  }, [])
-
-  const value = useMemo<StoreValue>(
-    () => ({
-      currentUser,
-      login,
-      logout,
-      facilityName,
-      children: childList,
-      notebookEntries,
-      notices,
-      messages,
-      sharedFiles,
-      calendarEvents,
-      addNotebookEntry,
-      addMessage,
-      addNotice,
-      addFile,
-      addEvent,
-      updateChild,
-    }),
-    [
-      currentUser,
-      login,
-      logout,
-      facilityName,
-      childList,
-      notebookEntries,
-      notices,
-      messages,
-      sharedFiles,
-      calendarEvents,
-      addNotebookEntry,
-      addMessage,
-      addNotice,
-      addFile,
-      addEvent,
-      updateChild,
-    ],
-  )
-
+  if (currentUser && query.isPending)
+    return (
+      <p role="status" className="p-8 text-center">
+        読み込み中…
+      </p>
+    )
+  if (currentUser && query.isError && !query.data)
+    return (
+      <div role="alert" className="space-y-3 p-8 text-center">
+        <p>データを取得できませんでした</p>
+        <button onClick={() => void query.refetch()}>再読み込み</button>
+      </div>
+    )
   return <StoreContext.Provider value={value}>{nodes}</StoreContext.Provider>
 }
 
 export function useStore() {
-  const ctx = useContext(StoreContext)
-  if (!ctx) throw new Error('useStore must be used within StoreProvider')
-  return ctx
+  const context = useContext(StoreContext)
+  if (!context) throw new Error('useStore must be used within StoreProvider')
+  return context
 }

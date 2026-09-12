@@ -31,17 +31,29 @@ export function ChatThread({
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [thread.length])
 
-  function send() {
-    const value = text.trim()
-    if (!value) return
-    addMessage({
-      childId,
-      sender: role,
-      senderName,
-      text: value,
-      time: new Date().toISOString(),
-    })
-    setText('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function send() {
+    if (isSaving) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      const value = text.trim()
+      if (!value) return
+      await addMessage({
+        childId,
+        sender: role,
+        senderName,
+        text: value,
+        time: new Date().toISOString(),
+      })
+      setText('')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '保存できませんでした')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -88,6 +100,11 @@ export function ChatThread({
       </div>
 
       <div className="border-t border-border bg-card p-3">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
         <div className="flex items-end gap-2">
           <textarea
             value={text}
@@ -107,7 +124,7 @@ export function ChatThread({
           <button
             type="button"
             onClick={send}
-            disabled={!text.trim()}
+            disabled={isSaving || !text.trim()}
             aria-label="送信"
             className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-opacity disabled:opacity-40"
           >

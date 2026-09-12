@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   Bell,
@@ -21,7 +20,6 @@ import { useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
 
 export default function ParentSettings() {
-  const router = useRouter()
   const { currentUser, facilityName, logout } = useStore()
   const { myChildren } = useParent()
   const [notices, setNotices] = useState(true)
@@ -30,9 +28,8 @@ export default function ParentSettings() {
 
   if (!currentUser) return null
 
-  function handleLogout() {
-    logout()
-    router.replace('/')
+  async function handleLogout() {
+    await logout()
   }
 
   return (
