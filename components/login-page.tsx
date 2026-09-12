@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useActionState, useEffect, useState } from 'react'
 import Image from 'next/image'
-import { ExternalLink, Github, HeartHandshake, Lock, Mail, School } from 'lucide-react'
+import { ExternalLink, HeartHandshake, Lock, Mail, School } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,7 +31,13 @@ const demoAccounts: Record<Role, { email: string; password: string; label: strin
     },
   }
 
-export default function LoginPage({ authMode, demoMode }: { authMode: AuthMode; demoMode: boolean }) {
+export default function LoginPage({
+  authMode,
+  demoMode,
+}: {
+  authMode: AuthMode
+  demoMode: boolean
+}) {
   const router = useRouter()
   const { login } = useStore()
   const [role, setRole] = useState<Role>('parent')
@@ -190,7 +196,6 @@ export default function LoginPage({ authMode, demoMode }: { authMode: AuthMode; 
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
                 >
-                  <Github className="size-4" />
                   GitHub
                   <ExternalLink className="size-3" />
                 </a>
