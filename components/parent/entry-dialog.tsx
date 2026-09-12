@@ -174,44 +174,50 @@ export function EntryDialog({
             onConditionChange={setEveningStool}
             onCountChange={setEveningStoolCount}
           />
-          <Field label="就寝時間">
-            <Input
-              type="time"
-              value={bedtime}
-              onChange={(event) => setBedtime(event.target.value)}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="就寝時間">
+              <Input
+                type="time"
+                value={bedtime}
+                onChange={(event) => setBedtime(event.target.value)}
+              />
+            </Field>
+          </div>
         </section>
 
         <section className="space-y-4">
           <h3 className="border-b border-border pb-2 font-bold">今朝の様子</h3>
-          <Field label="起床時間">
-            <Input
-              type="time"
-              value={wakeTime}
-              onChange={(event) => setWakeTime(event.target.value)}
-            />
-          </Field>
-          <Field label="体温">
-            <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="起床時間">
               <Input
-                type="number"
-                step="0.1"
-                min="34"
-                max="42"
-                value={temperature}
-                onChange={(event) => setTemperature(event.target.value)}
+                type="time"
+                value={wakeTime}
+                onChange={(event) => setWakeTime(event.target.value)}
               />
-              <span className="text-sm text-muted-foreground">℃</span>
-            </div>
-          </Field>
-          <Field label="検温時刻">
-            <Input
-              type="time"
-              value={temperatureMeasuredAt}
-              onChange={(event) => setTemperatureMeasuredAt(event.target.value)}
-            />
-          </Field>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="体温">
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="34"
+                  max="42"
+                  value={temperature}
+                  onChange={(event) => setTemperature(event.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">℃</span>
+              </div>
+            </Field>
+            <Field label="検温時刻">
+              <Input
+                type="time"
+                value={temperatureMeasuredAt}
+                onChange={(event) => setTemperatureMeasuredAt(event.target.value)}
+              />
+            </Field>
+          </div>
           <div>
             <p className="mb-2 text-sm font-semibold">きげん・体調</p>
             <div className="grid grid-cols-3 gap-2">
@@ -264,20 +270,22 @@ export function EntryDialog({
 
         <section className="space-y-4">
           <h3 className="border-b border-border pb-2 font-bold">お迎え予定・連絡</h3>
-          <Field label="お迎えに来る方">
-            <ChoiceSelect
-              value={pickupPerson}
-              options={pickupPersonLabels}
-              onChange={(value) => setPickupPerson(value as PickupPerson)}
-            />
-          </Field>
-          <Field label="お迎え予定時刻">
-            <Input
-              type="time"
-              value={pickupTime}
-              onChange={(event) => setPickupTime(event.target.value)}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="お迎えに来る方">
+              <ChoiceSelect
+                value={pickupPerson}
+                options={pickupPersonLabels}
+                onChange={(value) => setPickupPerson(value as PickupPerson)}
+              />
+            </Field>
+            <Field label="お迎え予定時刻">
+              <Input
+                type="time"
+                value={pickupTime}
+                onChange={(event) => setPickupTime(event.target.value)}
+              />
+            </Field>
+          </div>
           {pickupPerson === 'other' && (
             <Field label="お迎えに来る方の名前">
               <Input

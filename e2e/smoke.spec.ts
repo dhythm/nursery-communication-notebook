@@ -24,6 +24,21 @@ test('a parent can edit and submit a notebook entry', async ({ page }) => {
   await dialog.getByLabel('お迎えに来る方').selectOption('mother')
   await dialog.getByLabel('お迎え予定時刻').fill('17:30')
   await dialog.getByLabel('連絡事項').fill(note)
+  await expect(dialog.getByLabel('朝食の量')).toHaveCount(0)
+  await expect(dialog.getByLabel('写真')).toHaveCount(0)
+
+  const [dialogBox, bedtimeBox, temperatureBox, measuredAtBox, pickupPersonBox, pickupTimeBox] =
+    await Promise.all([
+      dialog.boundingBox(),
+      dialog.getByLabel('就寝時間').boundingBox(),
+      dialog.getByLabel('体温').boundingBox(),
+      dialog.getByLabel('検温時刻').boundingBox(),
+      dialog.getByLabel('お迎えに来る方').boundingBox(),
+      dialog.getByLabel('お迎え予定時刻').boundingBox(),
+    ])
+  expect(bedtimeBox!.width).toBeLessThan(dialogBox!.width * 0.6)
+  expect(Math.abs(temperatureBox!.y - measuredAtBox!.y)).toBeLessThan(5)
+  expect(Math.abs(pickupPersonBox!.y - pickupTimeBox!.y)).toBeLessThan(5)
   const saved = page.waitForResponse(
     (response) => response.url().endsWith('/notebook') && response.request().method() === 'POST',
   )
