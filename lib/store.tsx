@@ -17,6 +17,7 @@ import type {
   CalendarEvent,
   Child,
   Message,
+  MessageDraft,
   MessageTemplate,
   NotebookEntry,
   NotebookAction,
@@ -38,6 +39,9 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   ) => Promise<void>
   addMessage: (
     message: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>,
+  ) => Promise<void>
+  saveMessageDraft: (
+    draft: Pick<MessageDraft, 'childId' | 'text'> & { expectedVersion: number },
   ) => Promise<void>
   createMessageTemplate: (template: Pick<MessageTemplate, 'name' | 'text'>) => Promise<void>
   deleteMessageTemplate: (id: string) => Promise<void>
@@ -99,6 +103,7 @@ const emptySnapshot: NotebookSnapshot = {
   notebookEntries: [],
   notices: [],
   messages: [],
+  messageDrafts: [],
   messageTemplates: [],
   sharedFiles: [],
   calendarEvents: [],
@@ -173,6 +178,7 @@ function ApplicationStoreProvider({ children: nodes, initialUser, authMode }: St
     facilityName: (id) => snapshot.facilities.find((facility) => facility.id === id)?.name ?? '',
     addNotebookEntry: (payload) => mutate({ type: 'addNotebookEntry', payload }),
     addMessage: (payload) => mutate({ type: 'addMessage', payload }),
+    saveMessageDraft: (payload) => mutate({ type: 'saveMessageDraft', payload }),
     createMessageTemplate: (payload) => mutate({ type: 'createMessageTemplate', payload }),
     deleteMessageTemplate: (id) => mutate({ type: 'deleteMessageTemplate', payload: { id } }),
     addNotice: (payload) => mutate({ type: 'addNotice', payload }),

@@ -553,7 +553,23 @@ const migrations = [
         ON message_template(facility_id, created_at, id);
     `,
   },
-  { version: 17, sql: `${riskPlanMigrationSql};${attendanceMigrationSql};${napMigrationSql}` },
+  {
+    version: 17,
+    sql: `
+      CREATE TABLE message_draft (
+        facility_id text NOT NULL,
+        child_id text NOT NULL,
+        body text NOT NULL CHECK (length(body) BETWEEN 1 AND 5000),
+        version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+        updated_by_user_id text NOT NULL REFERENCES app_user(id) ON DELETE RESTRICT,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (facility_id, child_id),
+        FOREIGN KEY (facility_id, child_id) REFERENCES child(facility_id, id) ON DELETE CASCADE
+      );
+      CREATE INDEX message_draft_updated ON message_draft(facility_id, updated_at DESC);
+    `,
+  },
+  { version: 18, sql: `${riskPlanMigrationSql};${attendanceMigrationSql};${napMigrationSql}` },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

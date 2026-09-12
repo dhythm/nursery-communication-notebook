@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation'
 import { OperationsPage } from '@/components/operations/operations-page'
+import { ParentChildDetails } from '@/components/parent/child-details'
 import { requireFacilityRole } from '@/lib/auth/server'
+import { getDatabase } from '@/lib/db'
+import { canAccessChild } from '@/lib/facility-access'
 import ParentHome from '@/app/parent/page'
 import ParentFiles from '@/app/parent/files/page'
 import ParentMessages from '@/app/parent/messages/page'
@@ -53,6 +56,16 @@ export default async function FacilityPage({
   params: Promise<{ facilitySlug: string; role: string; section?: string[] }>
 }) {
   const { facilitySlug, role, section = [] } = await params
+  if (
+    role === 'parent' &&
+    section.length === 3 &&
+    section[0] === 'settings' &&
+    section[1] === 'children'
+  ) {
+    const user = await requireFacilityRole(facilitySlug, 'parent')
+    if (!(await canAccessChild(await getDatabase(), user, section[2]))) notFound()
+    return <ParentChildDetails childId={section[2]} />
+  }
   if (role === 'teacher' && (section[0] === 'audit' || section[0] === 'management')) {
     const user = await requireFacilityRole(facilitySlug, 'teacher')
     if (!user.canManageFacility) notFound()

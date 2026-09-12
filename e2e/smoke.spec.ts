@@ -8,7 +8,7 @@ test('shows a friendly loading state while opening the notebook', async ({ page 
   const requestBlocked = new Promise<void>((resolve) => {
     releaseRequest = resolve
   })
-  await page.route('**/api/nurseries/nijiiro/notebook', async (route) => {
+  await page.route('**/api/nurseries/nijiiro/notebook?*', async (route) => {
     await requestBlocked
     await route.continue()
   })
@@ -218,7 +218,7 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
   expect(await response.json()).toMatchObject({
     ok: true,
     provider: 'pglite',
-    migrationVersion: 17,
+    migrationVersion: 18,
   })
   let readCount = 0
   page.on('response', (response) => {
@@ -267,8 +267,11 @@ test('a teacher publishes an important notice and a parent confirms it', async (
   await page.getByRole('button', { name: '新規作成' }).click()
   const dialog = page.getByRole('dialog', { name: 'お知らせを作成' })
   const title = `確認依頼 ${Date.now()}`
+  const noticeBody =
+    '運動会の開催にあたり、当日の集合時刻と持ち物をご案内します。水筒、帽子、着替えをご用意ください。詳細画面だけに表示される末尾です。'
   await dialog.getByLabel('タイトル').fill(title)
-  await dialog.getByLabel('本文').fill('内容を確認してください。')
+  await dialog.getByLabel('本文').fill(noticeBody)
+  await dialog.getByLabel('分類').selectOption('重要')
   await dialog.getByLabel('確認を必須にする').check()
   await dialog.getByRole('button', { name: '配信する' }).click()
   await expect(page.getByText(title, { exact: true })).toBeVisible()
@@ -276,9 +279,14 @@ test('a teacher publishes an important notice and a parent confirms it', async (
   await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
   await page.goto(`${parentPath}/notices`)
   const article = page.getByRole('article').filter({ hasText: title })
+  await expect(article).not.toContainText('詳細画面だけに表示される末尾です。')
   await article.getByRole('button', { name: '詳細を確認' }).click()
-  await article.getByRole('button', { name: '確認しました' }).click()
-  await expect(article.getByText('確認済み')).toBeVisible()
+  const noticeDialog = page.getByRole('dialog', { name: title })
+  await expect(noticeDialog).toContainText(noticeBody)
+  await expect(noticeDialog).toContainText('重要')
+  await expect(noticeDialog).toContainText('既読')
+  await noticeDialog.getByRole('button', { name: '確認しました' }).click()
+  await expect(noticeDialog.getByText('確認済み')).toBeVisible()
 })
 
 test('a teacher uploads a real PDF that an authorized parent can download', async ({ page }) => {

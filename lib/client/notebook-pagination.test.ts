@@ -16,6 +16,7 @@ function snapshot(overrides: Record<string, unknown> = {}) {
     notebookEntries: [],
     notices: [],
     messages: [],
+    messageDrafts: [],
     messageTemplates: [],
     sharedFiles: [],
     calendarEvents: [],

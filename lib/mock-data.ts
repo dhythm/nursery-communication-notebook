@@ -37,12 +37,15 @@ export const messageTemplates: MessageTemplate[] = [
 ]
 
 export const nurseryClasses: NurseryClass[] = [
-  { id: 'class-f1-sora', facilityId: 'f1', name: 'そら組（4歳児）', schoolYear: 2026 },
+  { id: 'class-f1-umi', facilityId: 'f1', name: 'うみ組（0歳児）', schoolYear: 2026 },
+  { id: 'class-f1-hoshi', facilityId: 'f1', name: 'ほし組（1歳児）', schoolYear: 2026 },
   { id: 'class-f1-tsuki', facilityId: 'f1', name: 'つき組（2歳児）', schoolYear: 2026 },
+  { id: 'class-f1-kaze', facilityId: 'f1', name: 'かぜ組（3歳児）', schoolYear: 2026 },
+  { id: 'class-f1-sora', facilityId: 'f1', name: 'そら組（4歳児）', schoolYear: 2026 },
   { id: 'class-f1-niji', facilityId: 'f1', name: 'にじ組（5歳児）', schoolYear: 2026 },
 ]
 
-export const children: Child[] = [
+const baseChildren: Child[] = [
   {
     id: 'c1',
     classId: 'class-f1-sora',
@@ -92,6 +95,74 @@ export const children: Child[] = [
     notes: 'お絵かきが得意です。',
   },
 ]
+
+const classTargets = [
+  { classId: 'class-f1-umi', className: 'うみ組（0歳児）', age: 0, count: 6 },
+  { classId: 'class-f1-hoshi', className: 'ほし組（1歳児）', age: 1, count: 8 },
+  { classId: 'class-f1-tsuki', className: 'つき組（2歳児）', age: 2, count: 10 },
+  { classId: 'class-f1-kaze', className: 'かぜ組（3歳児）', age: 3, count: 12 },
+  { classId: 'class-f1-sora', className: 'そら組（4歳児）', age: 4, count: 12 },
+  { classId: 'class-f1-niji', className: 'にじ組（5歳児）', age: 5, count: 12 },
+]
+
+const familyNames = [
+  ['伊藤', 'いとう'],
+  ['渡辺', 'わたなべ'],
+  ['山本', 'やまもと'],
+  ['中村', 'なかむら'],
+  ['小林', 'こばやし'],
+  ['加藤', 'かとう'],
+  ['吉田', 'よしだ'],
+  ['山田', 'やまだ'],
+  ['佐々木', 'ささき'],
+  ['山口', 'やまぐち'],
+  ['松本', 'まつもと'],
+  ['井上', 'いのうえ'],
+  ['木村', 'きむら'],
+  ['林', 'はやし'],
+] as const
+
+const givenNames = [
+  ['りく', 'りく'],
+  ['ゆい', 'ゆい'],
+  ['そうた', 'そうた'],
+  ['ひまり', 'ひまり'],
+] as const
+
+const avatarColors = [
+  'oklch(0.8 0.11 30)',
+  'oklch(0.72 0.12 250)',
+  'oklch(0.7 0.13 200)',
+  'oklch(0.75 0.12 330)',
+  'oklch(0.78 0.12 80)',
+  'oklch(0.72 0.13 155)',
+]
+
+let generatedChildIndex = 0
+const additionalChildren = classTargets.flatMap((target) => {
+  const existingCount = baseChildren.filter((child) => child.classId === target.classId).length
+  return Array.from({ length: target.count - existingCount }, (_, index): Child => {
+    const identityIndex = generatedChildIndex++
+    const familyName = familyNames[identityIndex % familyNames.length]
+    const givenName = givenNames[Math.floor(identityIndex / familyNames.length)]
+    const month = 4 + ((identityIndex * 2) % 9)
+    const day = 2 + ((identityIndex * 5) % 25)
+    return {
+      id: `seed-child-${target.age}-${index + 1}`,
+      classId: target.classId,
+      name: `${familyName[0]} ${givenName[0]}`,
+      kana: `${familyName[1]} ${givenName[1]}`,
+      facilityId: 'f1',
+      className: target.className,
+      birthday: `${2025 - target.age}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      avatarColor: avatarColors[identityIndex % avatarColors.length],
+      allergies: identityIndex % 11 === 0 ? ['卵'] : [],
+      notes: '',
+    }
+  })
+})
+
+export const children: Child[] = [...baseChildren, ...additionalChildren]
 
 export const users: User[] = [
   {

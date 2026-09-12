@@ -1,10 +1,28 @@
+import { SettingsBackLink } from '@/components/parent/settings-back-link'
+
 export default function HelpPage() {
   return (
-    <article className="space-y-4 p-4">
-      <h1 className="font-display text-xl font-bold">ヘルプ・お問い合わせ</h1>
-      <p className="text-sm leading-7">
-        ログイン、園児情報、配信内容については所属園へお問い合わせください。障害時は発生日時と操作内容を添えて園の管理窓口へご連絡ください。
-      </p>
+    <article className="space-y-5 p-4 pb-8">
+      <SettingsBackLink />
+      <h1 className="font-display text-xl font-bold">ヘルプ</h1>
+      <section className="space-y-2">
+        <h2 className="font-display text-base font-bold">お子さまを切り替える</h2>
+        <p className="text-sm leading-7">
+          画面上部のお子さまの名前を押すと、表示するお子さまを切り替えられます。
+        </p>
+      </section>
+      <section className="space-y-2">
+        <h2 className="font-display text-base font-bold">連絡帳を送る</h2>
+        <p className="text-sm leading-7">
+          連絡帳画面から当日の内容を入力して送信できます。園が確認するまでは編集や送信取消ができます。
+        </p>
+      </section>
+      <section className="space-y-2">
+        <h2 className="font-display text-base font-bold">園へ連絡する</h2>
+        <p className="text-sm leading-7">
+          欠席、遅刻、お迎えの変更、その他の連絡はメッセージ画面から送信できます。
+        </p>
+      </section>
     </article>
   )
 }

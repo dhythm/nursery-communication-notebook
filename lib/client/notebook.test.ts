@@ -8,6 +8,7 @@ const snapshot = {
   notebookEntries: [],
   notices: [],
   messages: [],
+  messageDrafts: [],
   messageTemplates: [],
   sharedFiles: [],
   calendarEvents: [],
@@ -110,18 +111,34 @@ describe('notebook server cache', () => {
   })
 
   it('surfaces a conflict message returned by the server', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          Response.json(
-            { error: '他の利用者が先に更新しました。再読み込みして確認してください。' },
-            { status: 409 },
-          ),
+    const updatedSnapshot = {
+      ...snapshot,
+      messageDrafts: [
+        {
+          facilityId: 'facility',
+          childId: 'child',
+          text: '同僚が更新した下書き',
+          version: 2,
+          updatedAt: '2026-09-12T10:00:00.000Z',
+          updatedByName: '同僚 先生',
+        },
+      ],
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(snapshot))
+      .mockResolvedValueOnce(
+        Response.json(
+          { error: '他の利用者が先に更新しました。再読み込みして確認してください。' },
+          { status: 409 },
         ),
-    )
+      )
+      .mockResolvedValue(Response.json(updatedSnapshot))
+    vi.stubGlobal('fetch', fetchMock)
     const client = new QueryClient()
+    await client.fetchQuery(notebookQuery(teacherScope))
+    const observer = new QueryObserver(client, notebookQuery(teacherScope))
+    const unsubscribe = observer.subscribe(() => {})
     const mutation = new MutationObserver(client, notebookMutation(client, teacherScope))
     await expect(
       mutation.mutate({
@@ -130,5 +147,8 @@ describe('notebook server cache', () => {
         payload: { id: 'child', expectedVersion: 1, patch: {} },
       }),
     ).rejects.toThrow('他の利用者が先に更新しました')
+    expect(observer.getCurrentResult().data).toEqual(updatedSnapshot)
+    unsubscribe()
+    client.clear()
   })
 })

@@ -120,6 +120,15 @@ export interface MessageTemplate {
   text: string
 }
 
+export interface MessageDraft {
+  facilityId: string
+  childId: string
+  text: string
+  version: number
+  updatedAt: string
+  updatedByName: string
+}
+
 export interface SharedFile {
   id: string
   facilityId: string
@@ -194,6 +203,7 @@ export interface NotebookSnapshot {
   notebookEntries: NotebookEntry[]
   notices: Notice[]
   messages: Message[]
+  messageDrafts: MessageDraft[]
   messageTemplates: MessageTemplate[]
   sharedFiles: SharedFile[]
   calendarEvents: CalendarEvent[]
@@ -212,6 +222,10 @@ export type NotebookAction =
   | {
       type: 'addMessage'
       payload: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>
+    }
+  | {
+      type: 'saveMessageDraft'
+      payload: { childId: string; text: string; expectedVersion: number }
     }
   | { type: 'createMessageTemplate'; payload: { name: string; text: string } }
   | { type: 'deleteMessageTemplate'; payload: { id: string } }

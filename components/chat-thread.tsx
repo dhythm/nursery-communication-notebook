@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, Clock3, Save, Send, Trash2 } from 'lucide-react'
 import { formatDate, formatTime, todayInTimeZone } from '@/lib/format'
 import { useStore } from '@/lib/store'
@@ -11,16 +11,15 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
   const {
     currentUser,
     messages,
+    messageDrafts,
     messageTemplates,
     addMessage,
+    saveMessageDraft,
     createMessageTemplate,
     deleteMessageTemplate,
   } = useStore()
-  const draftKey =
-    role === 'teacher' && currentUser
-      ? `nursery:teacher-message-draft:${currentUser.id}:${childId}`
-      : null
-  const [text, setText] = useState(() => readStoredText(draftKey))
+  const sharedDraft = messageDrafts.find((draft) => draft.childId === childId)
+  const [text, setText] = useState('')
   const [kind, setKind] = useState<MessageKind>('general')
   const [scheduledDate, setScheduledDate] = useState(todayInTimeZone())
   const [scheduledTime, setScheduledTime] = useState('')
@@ -29,6 +28,19 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
   const [isTemplateSaving, setIsTemplateSaving] = useState(false)
   const composingRef = useRef(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const activeChildRef = useRef(childId)
+  const draftVersionRef = useRef(0)
+  const savedDraftTextRef = useRef('')
+  const latestTextRef = useRef('')
+  const draftDirtyRef = useRef(false)
+  const draftSaveChainRef = useRef<Promise<void>>(Promise.resolve())
+  const saveMessageDraftRef = useRef(saveMessageDraft)
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [draftConflictRevision, setDraftConflictRevision] = useState(0)
+
+  useEffect(() => {
+    saveMessageDraftRef.current = saveMessageDraft
+  }, [saveMessageDraft])
 
   const thread = useMemo(
     () =>
@@ -40,14 +52,90 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [thread.length])
 
-  useEffect(() => {
-    if (!draftKey || typeof window === 'undefined') return
-    if (text) window.localStorage.setItem(draftKey, text)
-    else window.localStorage.removeItem(draftKey)
-  }, [draftKey, text])
-
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function recoverSharedDraft(saveError: unknown) {
+    if (
+      saveError instanceof Error &&
+      'status' in saveError &&
+      (saveError as Error & { status?: number }).status === 409
+    ) {
+      draftDirtyRef.current = false
+      draftVersionRef.current = -1
+      setDraftConflictRevision((revision) => revision + 1)
+    }
+  }
+
+  useEffect(() => {
+    if (role !== 'teacher') return
+    const serverText = sharedDraft?.text ?? ''
+    const serverVersion = sharedDraft?.version ?? 0
+    if (activeChildRef.current !== childId) {
+      activeChildRef.current = childId
+      draftDirtyRef.current = false
+      savedDraftTextRef.current = serverText
+      latestTextRef.current = serverText
+      draftVersionRef.current = serverVersion
+      setText(serverText)
+      setDraftStatus(serverText ? 'saved' : 'idle')
+      return
+    }
+    if (!draftDirtyRef.current && serverVersion !== draftVersionRef.current) {
+      savedDraftTextRef.current = serverText
+      latestTextRef.current = serverText
+      draftVersionRef.current = serverVersion
+      setText(serverText)
+      setDraftStatus(serverText ? 'saved' : 'idle')
+    }
+  }, [childId, draftConflictRevision, role, sharedDraft?.text, sharedDraft?.version])
+
+  function updateText(value: string) {
+    latestTextRef.current = value
+    setText(value)
+    if (role === 'teacher') {
+      draftDirtyRef.current = value !== savedDraftTextRef.current
+      setDraftStatus(draftDirtyRef.current ? 'idle' : value ? 'saved' : 'idle')
+    }
+  }
+
+  const queueDraftSave = useCallback(
+    (value: string) => {
+      const childAtRequest = childId
+      const next = draftSaveChainRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          if (value === savedDraftTextRef.current || activeChildRef.current !== childAtRequest)
+            return
+          setDraftStatus('saving')
+          await saveMessageDraftRef.current({
+            childId: childAtRequest,
+            text: value,
+            expectedVersion: draftVersionRef.current,
+          })
+          if (activeChildRef.current !== childAtRequest) return
+          draftVersionRef.current = value ? draftVersionRef.current + 1 : 0
+          savedDraftTextRef.current = value
+          draftDirtyRef.current = latestTextRef.current !== value
+          setDraftStatus(draftDirtyRef.current ? 'idle' : value ? 'saved' : 'idle')
+        })
+      draftSaveChainRef.current = next
+      return next
+    },
+    [childId],
+  )
+
+  useEffect(() => {
+    if (role !== 'teacher' || text === savedDraftTextRef.current) return
+    const timeout = window.setTimeout(() => {
+      void queueDraftSave(text).catch((error) => {
+        setDraftStatus('idle')
+        recoverSharedDraft(error)
+        setError(error instanceof Error ? error.message : '下書きを保存できませんでした')
+      })
+    }, 700)
+    return () => window.clearTimeout(timeout)
+  }, [queueDraftSave, role, text])
 
   async function send() {
     if (isSaving) return
@@ -56,6 +144,7 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
     try {
       const value = text.trim() || defaultMessage(kind, scheduledDate, scheduledTime)
       if (!value) return
+      if (role === 'teacher') await queueDraftSave(text)
       await addMessage({
         childId,
         text: value,
@@ -63,11 +152,16 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
         scheduledDate: kind === 'general' ? undefined : scheduledDate,
         scheduledTime: kind === 'late' || kind === 'pickup' ? scheduledTime : undefined,
       })
-      if (draftKey && typeof window !== 'undefined') window.localStorage.removeItem(draftKey)
+      savedDraftTextRef.current = ''
+      latestTextRef.current = ''
+      draftVersionRef.current = 0
+      draftDirtyRef.current = false
+      setDraftStatus('idle')
       setText('')
       setKind('general')
       setScheduledTime('')
     } catch (error) {
+      recoverSharedDraft(error)
       setError(error instanceof Error ? error.message : '保存できませんでした')
     } finally {
       setIsSaving(false)
@@ -215,7 +309,7 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
                 >
                   <button
                     type="button"
-                    onClick={() => setText(template.text)}
+                    onClick={() => updateText(template.text)}
                     className="px-3 py-1.5 text-xs font-bold"
                   >
                     {template.name}
@@ -288,13 +382,15 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
             )}
           </div>
         )}
-        {role === 'teacher' && text.trim() && (
-          <p className="mb-1 text-right text-[0.65rem] text-muted-foreground">下書き保存済み</p>
+        {role === 'teacher' && text && draftStatus !== 'idle' && (
+          <p className="mb-1 text-right text-[0.65rem] text-muted-foreground">
+            {draftStatus === 'saving' ? '下書き保存中' : '下書き保存済み'}
+          </p>
         )}
         <div className="flex items-end gap-2">
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => updateText(e.target.value)}
             onCompositionStart={() => (composingRef.current = true)}
             onCompositionEnd={() => (composingRef.current = false)}
             onKeyDown={(e) => {
@@ -337,11 +433,6 @@ const messageKindLabels: Record<MessageKind, string> = {
 const messageKinds = (Object.entries(messageKindLabels) as [MessageKind, string][]).map(
   ([value, label]) => ({ value, label }),
 )
-
-function readStoredText(key: string | null) {
-  if (!key || typeof window === 'undefined') return ''
-  return window.localStorage.getItem(key) ?? ''
-}
 
 function defaultMessage(kind: MessageKind, date: string, time: string) {
   if (kind === 'absence') return `${date}は欠席します。`
