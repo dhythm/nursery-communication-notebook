@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useStore } from '@/lib/store'
 import { todayInTimeZone } from '@/lib/format'
 import type { PlanRecord } from '@/lib/operations/risk-plans'
+import { OperationLoading } from './operation-loading'
 import { useOperations } from './use-operations'
 
 const periodLabel = { monthly: '月案', weekly: '週案', daily: '日案' }
@@ -24,7 +25,7 @@ export function PlanPanel() {
   const [status, setStatus] = useState('all')
   const [period, setPeriod] = useState('all')
   const [notice, setNotice] = useState('')
-  if (isLoading) return <p role="status">指導計画を読み込み中…</p>
+  if (isLoading) return <OperationLoading label="指導計画" />
   if (!data)
     return (
       <div>

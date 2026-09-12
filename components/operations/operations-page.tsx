@@ -11,14 +11,14 @@ import { AttendancePanel } from './attendance-panel'
 import { NapPanel } from './nap-panel'
 
 const sections = [
-  { key: 'risks', label: 'リスク管理', icon: ShieldCheck, panel: RiskPanel },
   { key: 'attendance', label: '出退勤', icon: Clock, panel: AttendancePanel },
+  { key: 'risks', label: 'リスク管理', icon: ShieldCheck, panel: RiskPanel },
   { key: 'plans', label: '指導計画', icon: NotebookPen, panel: PlanPanel },
   { key: 'nap', label: '午睡チェック', icon: Moon, panel: NapPanel },
 ] as const
 
 export function OperationsPage({
-  section,
+  section = 'attendance',
 }: {
   section?: 'risks' | 'attendance' | 'plans' | 'nap'
 }) {

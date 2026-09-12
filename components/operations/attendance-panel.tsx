@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { OperationLoading } from './operation-loading'
 import { useOperations } from './use-operations'
 import type { readAttendance } from '@/lib/operations/attendance'
 
@@ -29,7 +30,7 @@ export function AttendancePanel() {
     useOperations<AttendanceData>('attendance')
   const [editing, setEditing] = useState<Session | null>(null)
   const [formError, setFormError] = useState('')
-  if (isLoading) return <p role="status">勤怠を読み込み中…</p>
+  if (isLoading) return <OperationLoading label="出退勤" />
   if (!data)
     return (
       <div>

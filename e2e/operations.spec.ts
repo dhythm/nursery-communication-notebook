@@ -8,6 +8,25 @@ test.beforeEach(async ({ page }) => {
   await expect(page).toHaveURL('/nurseries/nijiiro/teacher')
 })
 
+test('staff operations opens attendance first with a polished loading state', async ({ page }) => {
+  await page.route('**/operations?module=attendance', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    await route.continue()
+  })
+  await page.goto(teacherPath)
+
+  const navigation = page.getByRole('navigation', { name: '職員業務' })
+  await expect(navigation.getByRole('link')).toHaveText([
+    '出退勤',
+    'リスク管理',
+    '指導計画',
+    '午睡チェック',
+  ])
+  await expect(navigation.getByRole('link').first()).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('status', { name: '出退勤を準備しています' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '自分の打刻' })).toBeVisible()
+})
+
 test('staff records, resolves and reopens a persisted near miss', async ({ page }) => {
   await page.goto(`${teacherPath}/risks`)
   await page.getByRole('button', { name: '報告を記録' }).click()

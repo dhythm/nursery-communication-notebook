@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useStore } from '@/lib/store'
 import type { RiskRecord } from '@/lib/operations/risk-plans'
+import { OperationLoading } from './operation-loading'
 import { useOperations } from './use-operations'
 
 const kindLabel = { accident: '事故', near_miss: 'ヒヤリハット' }
@@ -30,7 +31,7 @@ export function RiskPanel() {
   const [status, setStatus] = useState('open')
   const [kind, setKind] = useState('all')
   const [notice, setNotice] = useState('')
-  if (isLoading) return <p role="status">報告を読み込み中…</p>
+  if (isLoading) return <OperationLoading label="リスク管理" />
   if (!data)
     return (
       <div>

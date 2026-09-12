@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useOperations } from './use-operations'
+import { OperationLoading } from './operation-loading'
 
 const postureLabel = { back: '仰向け', side: '横向き', front: 'うつ伏せ' }
 function time(value: string) {
@@ -273,7 +274,7 @@ export function NapPanel() {
     const timer = setInterval(() => setNow(Date.now()), 5000)
     return () => clearInterval(timer)
   }, [])
-  if (isLoading) return <p role="status">午睡記録を読み込み中…</p>
+  if (isLoading) return <OperationLoading label="午睡チェック" />
   if (!data)
     return (
       <div className="space-y-3">
@@ -322,7 +323,6 @@ export function NapPanel() {
           {error}
         </p>
       )}
-      {isLoading && <p role="status">読み込み中…</p>}
       <label className="grid max-w-xs gap-1 text-sm">
         クラス
         <Select
