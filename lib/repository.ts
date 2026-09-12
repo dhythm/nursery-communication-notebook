@@ -317,7 +317,9 @@ export async function readNotebook(
         await database.query<NotebookSnapshot['messages'][number]>(
           `SELECT message.id, message.child_id AS "childId", message.sender_user_id AS "senderId",
              message.sender_role AS sender, message.sender_name AS "senderName",
-             message.body AS text, message.sent_at::text AS time
+             message.body AS text, message.sent_at::text AS time, message.kind,
+             message.scheduled_date::text AS "scheduledDate",
+             to_char(message.scheduled_time, 'HH24:MI') AS "scheduledTime"
            FROM message
            WHERE message.facility_id = $1 AND message.child_id = ANY($2::text[])
              AND ($3 = '' OR message.body ILIKE '%' || $3 || '%' OR message.sender_name ILIKE '%' || $3 || '%')
@@ -618,6 +620,9 @@ const commandSchema = z.discriminatedUnion('type', [
       .object({
         childId: id,
         text: text.min(1),
+        kind: z.enum(['general', 'absence', 'late', 'pickup']).optional(),
+        scheduledDate: date.optional(),
+        scheduledTime: time.optional(),
       })
       .strict(),
   }),
@@ -944,13 +949,22 @@ export async function mutateNotebook(
   if (command.type === 'addMessage') {
     if (!snapshot.children.some((child) => child.id === command.payload.childId))
       throw new Error('Forbidden')
+    const kind = command.payload.kind ?? 'general'
+    const validSchedule =
+      (kind === 'general' && !command.payload.scheduledDate && !command.payload.scheduledTime) ||
+      (kind === 'absence' && command.payload.scheduledDate && !command.payload.scheduledTime) ||
+      ((kind === 'late' || kind === 'pickup') &&
+        command.payload.scheduledDate &&
+        command.payload.scheduledTime)
+    if (!validSchedule) throw new Error('InvalidSchedule')
     const messageId = randomUUID()
     await database.transaction(async (transaction) => {
       if (!(await acceptCommand(transaction, user.id, command.commandId))) return
       await transaction.query(
         `INSERT INTO message
-         (id, facility_id, child_id, sender_user_id, sender_role, sender_name, body, sent_at, command_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+         (id, facility_id, child_id, sender_user_id, sender_role, sender_name, body, sent_at,
+          command_id, kind, scheduled_date, scheduled_time)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date, $12::time)`,
         [
           messageId,
           user.facilityId,
@@ -961,6 +975,9 @@ export async function mutateNotebook(
           command.payload.text,
           now.toISOString(),
           command.commandId,
+          kind,
+          command.payload.scheduledDate ?? null,
+          command.payload.scheduledTime ?? null,
         ],
       )
       await writeAudit(
@@ -971,7 +988,12 @@ export async function mutateNotebook(
         'message',
         messageId,
         null,
-        { childId: command.payload.childId },
+        {
+          childId: command.payload.childId,
+          kind,
+          scheduledDate: command.payload.scheduledDate,
+          scheduledTime: command.payload.scheduledTime,
+        },
         now,
       )
       await createNotifications(

@@ -97,6 +97,8 @@ export interface Notice {
   confirmationCount?: number
 }
 
+export type MessageKind = 'general' | 'absence' | 'late' | 'pickup'
+
 export interface Message {
   id: string
   childId: string
@@ -105,6 +107,9 @@ export interface Message {
   senderName: string
   text: string
   time: string
+  kind?: MessageKind
+  scheduledDate?: string
+  scheduledTime?: string
 }
 
 export interface SharedFile {

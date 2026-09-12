@@ -483,6 +483,21 @@ const migrations = [
         ON notebook_entry(facility_id, confirmed_at) WHERE author_role = 'parent' AND status = 'published';
     `,
   },
+  {
+    version: 12,
+    sql: `
+      ALTER TABLE message ADD COLUMN kind text NOT NULL DEFAULT 'general'
+        CHECK (kind IN ('general', 'absence', 'late', 'pickup'));
+      ALTER TABLE message ADD COLUMN scheduled_date date;
+      ALTER TABLE message ADD COLUMN scheduled_time time;
+      ALTER TABLE message ADD CONSTRAINT message_schedule_required
+        CHECK ((kind = 'general' AND scheduled_date IS NULL AND scheduled_time IS NULL)
+          OR (kind = 'absence' AND scheduled_date IS NOT NULL AND scheduled_time IS NULL)
+          OR (kind IN ('late', 'pickup') AND scheduled_date IS NOT NULL AND scheduled_time IS NOT NULL));
+      CREATE INDEX message_schedule
+        ON message(facility_id, scheduled_date, kind) WHERE kind <> 'general';
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

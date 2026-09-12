@@ -150,7 +150,7 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
   expect(await response.json()).toMatchObject({
     ok: true,
     provider: 'pglite',
-    migrationVersion: 10,
+    migrationVersion: 12,
   })
   let readCount = 0
   page.on('response', (response) => {
@@ -169,6 +169,25 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
   await page.getByRole('link', { name: 'ホーム', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'こんにちは、田中さん' })).toBeVisible()
   expect(readCount).toBe(1)
+})
+
+test('a parent can send an absence notice from messages', async ({ page }) => {
+  await page.goto(`${parentPath}/messages`)
+  await page.getByRole('button', { name: '欠席連絡', exact: true }).click()
+  await page.getByLabel('日付').fill('2026-09-15')
+  const note = `発熱のため欠席します。${Date.now()}`
+  await page.getByPlaceholder('補足があれば入力').fill(note)
+  const saved = page.waitForResponse(
+    (response) => response.url().endsWith('/notebook') && response.request().method() === 'POST',
+  )
+  await page.getByRole('button', { name: '送信', exact: true }).click()
+  expect((await saved).status()).toBe(200)
+  const message = page.locator('[data-message-kind="absence"]').filter({ hasText: note })
+  await expect(message).toContainText(note)
+  await page.reload()
+  await expect(
+    page.locator('[data-message-kind="absence"]').filter({ hasText: note }),
+  ).toContainText(note)
 })
 
 test('a teacher publishes an important notice and a parent confirms it', async ({ page }) => {

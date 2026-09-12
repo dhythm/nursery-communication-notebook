@@ -74,6 +74,38 @@ describe('notebook repository', () => {
       ).rows,
     ).toEqual([{ sender_user_id: parent.id, command_id: 'message-once' }])
   })
+  it('stores absence, late-arrival, and pickup plans as structured messages', async () => {
+    await mutateNotebook(database, parent, {
+      commandId: 'structured-absence-message',
+      type: 'addMessage',
+      payload: {
+        childId: 'c1',
+        text: '発熱のためお休みします。',
+        kind: 'absence',
+        scheduledDate: '2026-09-15',
+      },
+    })
+    const message = (await readNotebook(database, teacher)).messages.find(
+      (candidate) => candidate.text === '発熱のためお休みします。',
+    )
+    expect(message).toMatchObject({
+      kind: 'absence',
+      scheduledDate: '2026-09-15',
+    })
+
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'late-message-without-time',
+        type: 'addMessage',
+        payload: {
+          childId: 'c1',
+          text: '遅れます。',
+          kind: 'late',
+          scheduledDate: '2026-09-15',
+        },
+      }),
+    ).rejects.toThrow('InvalidSchedule')
+  })
   it('rejects unauthorized child access and teacher-only mutations', async () => {
     await expect(
       mutateNotebook(database, parent, {

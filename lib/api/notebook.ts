@@ -69,7 +69,8 @@ export async function handleNotebookPost(request: Request, facilitySlug: string)
     const status =
       error instanceof ZodError ||
       error instanceof SyntaxError ||
-      (error instanceof Error && ['InvalidDate', 'InvalidClass'].includes(error.message))
+      (error instanceof Error &&
+        ['InvalidDate', 'InvalidClass', 'InvalidSchedule'].includes(error.message))
         ? 400
         : error instanceof Error && error.message === 'Forbidden'
           ? 403
