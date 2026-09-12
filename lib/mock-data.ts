@@ -3,6 +3,7 @@ import type {
   Child,
   Facility,
   Message,
+  NurseryClass,
   NotebookEntry,
   Notice,
   SharedFile,
@@ -14,9 +15,16 @@ export const facilities: Facility[] = [
   { id: 'f2', name: 'ひまわり保育園', logoColor: 'oklch(0.78 0.13 75)' },
 ]
 
+export const nurseryClasses: NurseryClass[] = [
+  { id: 'class-f1-sora', facilityId: 'f1', name: 'そら組（4歳児）', schoolYear: 2026 },
+  { id: 'class-f1-tsuki', facilityId: 'f1', name: 'つき組（2歳児）', schoolYear: 2026 },
+  { id: 'class-f1-niji', facilityId: 'f1', name: 'にじ組（5歳児）', schoolYear: 2026 },
+]
+
 export const children: Child[] = [
   {
     id: 'c1',
+    classId: 'class-f1-sora',
     name: '田中 ひなた',
     kana: 'たなか ひなた',
     facilityId: 'f1',
@@ -28,6 +36,7 @@ export const children: Child[] = [
   },
   {
     id: 'c2',
+    classId: 'class-f1-tsuki',
     name: '田中 あおい',
     kana: 'たなか あおい',
     facilityId: 'f1',
@@ -39,6 +48,7 @@ export const children: Child[] = [
   },
   {
     id: 'c3',
+    classId: 'class-f1-sora',
     name: '佐藤 はると',
     kana: 'さとう はると',
     facilityId: 'f1',
@@ -50,6 +60,7 @@ export const children: Child[] = [
   },
   {
     id: 'c4',
+    classId: 'class-f1-niji',
     name: '鈴木 めい',
     kana: 'すずき めい',
     facilityId: 'f1',

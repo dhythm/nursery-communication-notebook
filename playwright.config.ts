@@ -18,7 +18,10 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'pnpm dev:agent --hostname 127.0.0.1 --port 3100',
-    env: { PGLITE_DATA_DIR: mkdtempSync(join(tmpdir(), 'nursery-e2e-')) },
+    env: {
+      NEXT_DIST_DIR: '.next-e2e',
+      PGLITE_DATA_DIR: mkdtempSync(join(tmpdir(), 'nursery-e2e-')),
+    },
     url: 'http://127.0.0.1:3100',
     reuseExistingServer: false,
     timeout: 120_000,

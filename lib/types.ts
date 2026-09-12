@@ -6,6 +6,13 @@ export interface Facility {
   logoColor: string
 }
 
+export interface NurseryClass {
+  id: string
+  facilityId: string
+  name: string
+  schoolYear?: number
+}
+
 export interface User {
   id: string
   role: Role
@@ -18,6 +25,7 @@ export interface User {
 
 export interface Child {
   id: string
+  classId: string
   name: string
   kana: string
   facilityId: string

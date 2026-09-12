@@ -22,18 +22,33 @@ describe('notebook repository', () => {
     expect(snapshot.facilities.map((facility) => facility.id)).toEqual(['f1'])
     expect((await readNotebook(database, teacher)).children).toHaveLength(4)
   })
-  it('filters facilities and accessible children in the database query', async () => {
-    const queries: { sql: string; params?: unknown[] }[] = []
-    const filteredDatabase = {
-      query: async (sql: string, params?: unknown[]) => {
-        queries.push({ sql, params })
-        return { rows: [] }
-      },
-    } as unknown as Database
-    await readNotebook(filteredDatabase, parent)
-    expect(queries[0].sql).toContain("record.data->>'facilityId' = $1")
-    expect(queries[0].sql).toContain("record.data->>'childId' = ANY($3::text[])")
-    expect(queries[0].params).toEqual([parent.facilityId, false, parent.childIds])
+  it('seeds normalized users, classes, memberships, and relationships idempotently', async () => {
+    await seedNotebook(database)
+    expect((await database.query('SELECT id FROM app_user ORDER BY id')).rows).toEqual([
+      { id: 'u1' },
+      { id: 'u2' },
+    ])
+    expect((await database.query('SELECT id FROM nursery_class ORDER BY id')).rows).toEqual([
+      { id: 'class-f1-niji' },
+      { id: 'class-f1-sora' },
+      { id: 'class-f1-tsuki' },
+    ])
+    expect(
+      (
+        await database.query(
+          'SELECT guardian_user_id, child_id FROM guardian_child ORDER BY child_id',
+        )
+      ).rows,
+    ).toEqual([
+      { guardian_user_id: 'u1', child_id: 'c1' },
+      { guardian_user_id: 'u1', child_id: 'c2' },
+    ])
+  })
+  it('uses normalized guardian links instead of User.childIds for access', async () => {
+    const forgedUser = { ...parent, childIds: ['c3'] }
+    expect(
+      (await readNotebook(database, forgedUser)).children.map((child) => child.id).sort(),
+    ).toEqual(['c1', 'c2'])
   })
   it('stores a message, derives the author and preserves it on reseed', async () => {
     await mutateNotebook(database, parent, {
@@ -187,5 +202,35 @@ describe('notebook repository', () => {
       notes: 'first',
       version: 2,
     })
+  })
+  it('keeps class enrollment history when a child changes class', async () => {
+    const now = new Date('2026-09-12T03:00:00.000Z')
+    await mutateNotebook(
+      database,
+      teacher,
+      {
+        commandId: 'change-child-class',
+        type: 'updateChild',
+        payload: { id: 'c3', expectedVersion: 1, patch: { className: 'つき組（2歳児）' } },
+      },
+      now,
+    )
+    expect(
+      (await readNotebook(database, teacher)).children.find((child) => child.id === 'c3'),
+    ).toMatchObject({
+      classId: 'class-f1-tsuki',
+      className: 'つき組（2歳児）',
+      version: 2,
+    })
+    expect(
+      (
+        await database.query<{ ended_on: string | null }>(
+          `SELECT ended_on::text AS ended_on
+           FROM child_enrollment WHERE child_id = $1
+           ORDER BY ended_on NULLS LAST`,
+          ['c3'],
+        )
+      ).rows,
+    ).toEqual([{ ended_on: '2026-09-12' }, { ended_on: null }])
   })
 })

@@ -9,6 +9,7 @@ export default defineConfig([
   prettier,
   globalIgnores([
     '.next/**',
+    '.next-e2e/**',
     '.data/**',
     'out/**',
     'build/**',

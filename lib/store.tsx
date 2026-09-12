@@ -70,8 +70,13 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
   const [currentUser, setCurrentUser] = useState(initialUser)
   const client = useQueryClient()
   const router = useRouter()
-  const query = useQuery({ ...notebookQuery(currentUser?.id ?? ''), enabled: currentUser !== null })
-  const mutation = useMutation(notebookMutation(client, currentUser?.id ?? ''))
+  const queryScope = {
+    userId: currentUser?.id ?? '',
+    facilityId: currentUser?.facilityId ?? '',
+    role: currentUser?.role ?? ('parent' as const),
+  }
+  const query = useQuery({ ...notebookQuery(queryScope), enabled: currentUser !== null })
+  const mutation = useMutation(notebookMutation(client, queryScope))
   const mutate = (action: NotebookAction) =>
     mutation.mutateAsync({ ...action, commandId: crypto.randomUUID() })
   const snapshot = query.data ?? emptySnapshot

@@ -11,21 +11,32 @@ const snapshot = {
   sharedFiles: [],
   calendarEvents: [],
 }
+const parentScope = { userId: 'parent', facilityId: 'facility', role: 'parent' as const }
+const teacherScope = { userId: 'teacher', facilityId: 'facility', role: 'teacher' as const }
 afterEach(() => vi.unstubAllGlobals())
 
 describe('notebook server cache', () => {
   it('polls for updates while a screen stays open', () => {
-    expect(notebookQuery('parent').refetchInterval).toBe(30_000)
+    expect(notebookQuery(parentScope).refetchInterval).toBe(30_000)
+  })
+
+  it('separates cached snapshots by user, facility, and role', () => {
+    expect(notebookQuery(parentScope).queryKey).not.toEqual(
+      notebookQuery({ ...parentScope, facilityId: 'another-facility' }).queryKey,
+    )
+    expect(notebookQuery(parentScope).queryKey).not.toEqual(
+      notebookQuery({ ...parentScope, role: 'teacher' }).queryKey,
+    )
   })
 
   it('reuses fresh data for the same user and isolates another user', async () => {
     const fetchMock = vi.fn().mockImplementation(async () => Response.json(snapshot))
     vi.stubGlobal('fetch', fetchMock)
     const client = new QueryClient()
-    await client.fetchQuery(notebookQuery('parent'))
-    await client.fetchQuery(notebookQuery('parent'))
+    await client.fetchQuery(notebookQuery(parentScope))
+    await client.fetchQuery(notebookQuery(parentScope))
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    await client.fetchQuery(notebookQuery('teacher'))
+    await client.fetchQuery(notebookQuery(teacherScope))
     expect(fetchMock).toHaveBeenCalledTimes(2)
     client.clear()
   })
@@ -34,25 +45,25 @@ describe('notebook server cache', () => {
     const fetchMock = vi.fn().mockImplementation(async () => Response.json(snapshot))
     vi.stubGlobal('fetch', fetchMock)
     const client = new QueryClient()
-    await client.fetchQuery(notebookQuery('parent'))
-    await client.fetchQuery(notebookQuery('teacher'))
-    const observer = new QueryObserver(client, notebookQuery('parent'))
+    await client.fetchQuery(notebookQuery(parentScope))
+    await client.fetchQuery(notebookQuery(teacherScope))
+    const observer = new QueryObserver(client, notebookQuery(parentScope))
     const unsubscribe = observer.subscribe(() => {})
     const updatedSnapshot = {
       ...snapshot,
       facilities: [{ id: 'facility', name: 'Updated', logoColor: 'blue' }],
     }
     fetchMock.mockImplementation(async () => Response.json(updatedSnapshot))
-    const mutation = new MutationObserver(client, notebookMutation(client, 'parent'))
+    const mutation = new MutationObserver(client, notebookMutation(client, parentScope))
     await mutation.mutate({
       commandId: 'update-child',
       type: 'updateChild',
       payload: { id: 'child', expectedVersion: 1, patch: { notes: 'updated' } },
     })
-    await client.fetchQuery(notebookQuery('parent'))
-    await client.fetchQuery(notebookQuery('teacher'))
+    await client.fetchQuery(notebookQuery(parentScope))
+    await client.fetchQuery(notebookQuery(teacherScope))
     expect(observer.getCurrentResult().data).toEqual(updatedSnapshot)
-    expect(client.getQueryData(notebookQuery('teacher').queryKey)).toEqual(snapshot)
+    expect(client.getQueryData(notebookQuery(teacherScope).queryKey)).toEqual(snapshot)
     unsubscribe()
     expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'POST' })
@@ -66,8 +77,8 @@ describe('notebook server cache', () => {
       .mockResolvedValueOnce(new Response(null, { status: 500 }))
     vi.stubGlobal('fetch', fetchMock)
     const client = new QueryClient()
-    await client.fetchQuery(notebookQuery('parent'))
-    const mutation = new MutationObserver(client, notebookMutation(client, 'parent'))
+    await client.fetchQuery(notebookQuery(parentScope))
+    const mutation = new MutationObserver(client, notebookMutation(client, parentScope))
     await expect(
       mutation.mutate({
         commandId: 'failed-update-child',
@@ -75,7 +86,7 @@ describe('notebook server cache', () => {
         payload: { id: 'child', expectedVersion: 1, patch: {} },
       }),
     ).rejects.toThrow('保存できませんでした')
-    await client.fetchQuery(notebookQuery('parent'))
+    await client.fetchQuery(notebookQuery(parentScope))
     expect(fetchMock).toHaveBeenCalledTimes(2)
     client.clear()
   })
@@ -93,7 +104,7 @@ describe('notebook server cache', () => {
         ),
     )
     const client = new QueryClient()
-    const mutation = new MutationObserver(client, notebookMutation(client, 'teacher'))
+    const mutation = new MutationObserver(client, notebookMutation(client, teacherScope))
     await expect(
       mutation.mutate({
         commandId: 'stale-update',

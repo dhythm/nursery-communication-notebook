@@ -34,11 +34,11 @@ describe('PGlite database', () => {
     const database = await openDatabase()
     await migrateDatabase(database)
     await migrateDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 3, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: false })
     await seedDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 3, seeded: true })
-    expect((await database.query('SELECT * FROM facility')).rows).toEqual([
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: true })
+    expect((await database.query('SELECT id, name FROM facility')).rows).toEqual([
       { id: 'sample-facility', name: 'サンプル保育園' },
     ])
   }, 20_000)
@@ -90,6 +90,7 @@ describe('PGlite database', () => {
       { version: 1 },
       { version: 2 },
       { version: 3 },
+      { version: 4 },
     ])
   }, 20_000)
 
@@ -101,7 +102,7 @@ describe('PGlite database', () => {
     await seedDatabase(database)
     await database.close()
     const reopened = await openDatabase(directory)
-    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 3, seeded: true })
+    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 4, seeded: true })
   }, 20_000)
 
   it('creates missing parent directories for a persistent database', async () => {
@@ -110,11 +111,103 @@ describe('PGlite database', () => {
     const database = await openDatabase(join(directory, 'missing-parent', 'pglite'))
     await migrateDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 3, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: true })
   }, 20_000)
 
   it('fails readiness checks before migrations have run', async () => {
     const database = await openDatabase()
     await expect(checkDatabase(database)).rejects.toThrow()
+  }, 20_000)
+
+  it('enforces normalized child enrollment references and one current class', async () => {
+    const database = await openDatabase()
+    await migrateDatabase(database)
+    await database.query('INSERT INTO facility (id, name) VALUES ($1, $2)', ['facility-a', 'A園'])
+    await database.query('INSERT INTO facility (id, name) VALUES ($1, $2)', ['facility-b', 'B園'])
+    await database.query('INSERT INTO nursery_class (id, facility_id, name) VALUES ($1, $2, $3)', [
+      'class-a',
+      'facility-a',
+      'A組',
+    ])
+    await database.query(
+      `INSERT INTO child
+       (id, facility_id, name, kana, birthday, avatar_color)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      ['child-a', 'facility-a', '園児 A', 'えんじ えー', '2022-01-01', 'red'],
+    )
+    await expect(
+      database.query(
+        `INSERT INTO child_enrollment (id, facility_id, child_id, class_id)
+         VALUES ($1, $2, $3, $4)`,
+        ['wrong-facility', 'facility-b', 'child-a', 'class-a'],
+      ),
+    ).rejects.toThrow()
+    await database.query(
+      `INSERT INTO child_enrollment (id, facility_id, child_id, class_id)
+       VALUES ($1, $2, $3, $4)`,
+      ['current-a', 'facility-a', 'child-a', 'class-a'],
+    )
+    await expect(
+      database.query(
+        `INSERT INTO child_enrollment (id, facility_id, child_id, class_id)
+         VALUES ($1, $2, $3, $4)`,
+        ['current-b', 'facility-a', 'child-a', 'class-a'],
+      ),
+    ).rejects.toThrow()
+  }, 20_000)
+
+  it('backfills facilities, children, classes, and enrollment from a version 3 database', async () => {
+    const database = await openDatabase()
+    await database.query(
+      'CREATE TABLE schema_migration (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
+    )
+    await database.query('CREATE TABLE facility (id text PRIMARY KEY, name text NOT NULL)')
+    await database.query(
+      'CREATE TABLE app_record (id text PRIMARY KEY, kind text NOT NULL, data jsonb NOT NULL)',
+    )
+    await database.query(
+      `CREATE TABLE mutation_receipt (
+        actor_id text NOT NULL,
+        command_id text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (actor_id, command_id)
+      )`,
+    )
+    for (const version of [1, 2, 3]) {
+      await database.query('INSERT INTO schema_migration (version) VALUES ($1)', [version])
+    }
+    await database.query('INSERT INTO app_record (id, kind, data) VALUES ($1, $2, $3)', [
+      'facilities:legacy',
+      'facilities',
+      JSON.stringify({ id: 'legacy', name: '既存園', logoColor: 'green' }),
+    ])
+    await database.query('INSERT INTO app_record (id, kind, data) VALUES ($1, $2, $3)', [
+      'children:legacy-child',
+      'children',
+      JSON.stringify({
+        id: 'legacy-child',
+        facilityId: 'legacy',
+        name: '既存 園児',
+        kana: 'きぞん えんじ',
+        className: '既存組',
+        birthday: '2022-02-03',
+        avatarColor: 'blue',
+        allergies: ['卵'],
+        notes: '引き継ぐメモ',
+      }),
+    ])
+
+    await migrateDatabase(database)
+    expect(
+      (
+        await database.query(
+          `SELECT child.id, nursery_class.name AS class_name
+           FROM child
+           JOIN child_enrollment ON child_enrollment.child_id = child.id
+           JOIN nursery_class ON nursery_class.id = child_enrollment.class_id`,
+        )
+      ).rows,
+    ).toEqual([{ id: 'legacy-child', class_name: '既存組' }])
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 4, seeded: false })
   }, 20_000)
 })

@@ -1,9 +1,15 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import type { NotebookCommand, NotebookSnapshot } from '@/lib/types'
 
-export function notebookQuery(userId: string) {
+export interface NotebookQueryScope {
+  userId: string
+  facilityId: string
+  role: 'parent' | 'teacher'
+}
+
+export function notebookQuery(scope: NotebookQueryScope) {
   return queryOptions({
-    queryKey: ['notebook', userId],
+    queryKey: ['notebook', scope.userId, scope.facilityId, scope.role],
     staleTime: 60_000,
     refetchInterval: 30_000,
     queryFn: async ({ signal }): Promise<NotebookSnapshot> => {
@@ -14,7 +20,7 @@ export function notebookQuery(userId: string) {
   })
 }
 
-export function notebookMutation(client: QueryClient, userId: string) {
+export function notebookMutation(client: QueryClient, scope: NotebookQueryScope) {
   return {
     mutationFn: async (command: NotebookCommand): Promise<void> => {
       const response = await fetch('/api/notebook', {
@@ -28,7 +34,7 @@ export function notebookMutation(client: QueryClient, userId: string) {
       }
     },
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: notebookQuery(userId).queryKey })
+      await client.invalidateQueries({ queryKey: notebookQuery(scope).queryKey })
     },
   }
 }
