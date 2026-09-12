@@ -886,7 +886,7 @@ async function createNotifications(
     )
     if ((preference.rows[0]?.enabled ?? defaultEnabled) === false) continue
     const notificationId = randomUUID()
-    const inserted = await transaction.query<{ id: string }>(
+    await transaction.query(
       `INSERT INTO app_notification
        (id, facility_id, recipient_user_id, category, source_type, source_id, title, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -903,14 +903,6 @@ async function createNotifications(
         now.toISOString(),
       ],
     )
-    if (inserted.rows.length > 0) {
-      await transaction.query(
-        `INSERT INTO notification_outbox
-         (id, notification_id, status, attempt_count, processed_at)
-         VALUES ($1, $2, 'sent', 1, $3)`,
-        [randomUUID(), notificationId, now.toISOString()],
-      )
-    }
   }
 }
 

@@ -498,6 +498,10 @@ const migrations = [
         ON message(facility_id, scheduled_date, kind) WHERE kind <> 'general';
     `,
   },
+  {
+    version: 13,
+    sql: `DROP TABLE notification_outbox;`,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {
