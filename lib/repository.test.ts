@@ -489,6 +489,240 @@ describe('notebook repository', () => {
       authorName: parent.name,
     })
   })
+  it.each([
+    ['2026-09-13T12:00:00.000Z', '2026-09-14'],
+    ['2026-09-15T00:00:00.000Z', '2026-09-15'],
+  ])(
+    'publishes the selected date %s -> %s without changing it to the save date',
+    async (now, date) => {
+      const command = {
+        commandId: `selected-date-${now}`,
+        type: 'saveNotebookEntry' as const,
+        payload: {
+          childId: 'c1',
+          date,
+          mood: 'good' as const,
+          temperature: '36.5',
+          meals: '',
+          nap: '',
+          toilet: '',
+          note: `selected-date-${now}`,
+          status: 'published' as const,
+        },
+      }
+      await mutateNotebook(database, parent, command, new Date(now))
+      await mutateNotebook(database, parent, command, new Date(now))
+      const entries = (await readNotebook(database, teacher)).notebookEntries.filter(
+        (entry) => entry.note === command.payload.note,
+      )
+      expect(entries).toHaveLength(1)
+      expect(entries[0]).toMatchObject({ date, status: 'published' })
+    },
+  )
+
+  it('preserves Monday when a weekend draft is resumed and published on a later day', async () => {
+    await mutateNotebook(
+      database,
+      parent,
+      {
+        commandId: 'weekend-monday-draft',
+        type: 'saveNotebookEntry',
+        payload: {
+          childId: 'c2',
+          date: '2026-09-14',
+          mood: 'normal',
+          temperature: '36.5',
+          meals: '',
+          nap: '',
+          toilet: '',
+          note: '月曜日の下書き',
+          status: 'draft',
+        },
+      },
+      new Date('2026-09-12T12:00:00.000Z'),
+    )
+    const draft = (await readNotebook(database, parent)).notebookEntries.find(
+      (entry) => entry.note === '月曜日の下書き',
+    )!
+    expect(draft).toMatchObject({ date: '2026-09-14', status: 'draft' })
+    expect(
+      (await readNotebook(database, teacher)).notebookEntries.some(
+        (entry) => entry.id === draft.id,
+      ),
+    ).toBe(false)
+    await mutateNotebook(
+      database,
+      parent,
+      {
+        commandId: 'weekend-monday-resume',
+        type: 'updateNotebookEntry',
+        payload: {
+          id: draft.id,
+          expectedVersion: draft.version!,
+          patch: { note: '月曜日の更新済み下書き' },
+        },
+      },
+      new Date('2026-09-13T12:00:00.000Z'),
+    )
+    const resumed = (await readNotebook(database, parent)).notebookEntries.find(
+      (entry) => entry.id === draft.id,
+    )!
+    expect(resumed).toMatchObject({ date: '2026-09-14', status: 'draft', version: 2 })
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'weekend-monday-stale-publish',
+        type: 'updateNotebookEntry',
+        payload: {
+          id: draft.id,
+          expectedVersion: draft.version!,
+          patch: { status: 'published' },
+        },
+      }),
+    ).rejects.toThrow('Conflict')
+    await mutateNotebook(
+      database,
+      parent,
+      {
+        commandId: 'weekend-monday-publish',
+        type: 'updateNotebookEntry',
+        payload: {
+          id: resumed.id,
+          expectedVersion: resumed.version!,
+          patch: { status: 'published' },
+        },
+      },
+      new Date('2026-09-14T00:00:00.000Z'),
+    )
+    expect(
+      (await readNotebook(database, teacher)).notebookEntries.find(
+        (entry) => entry.id === draft.id,
+      ),
+    ).toMatchObject({ date: '2026-09-14', status: 'published', version: 3 })
+  })
+
+  it('saves and resumes an incomplete future draft without inventing a temperature', async () => {
+    const payload = {
+      childId: 'c1',
+      date: '2026-09-21',
+      mood: 'normal',
+      temperature: '',
+      meals: '',
+      nap: '',
+      toilet: '',
+      note: '未入力の下書き',
+      eveningMeal: '',
+      bedtime: '',
+      eveningStool: 'none',
+      eveningStoolCount: 0,
+      wakeTime: '',
+      morningStool: 'none',
+      morningStoolCount: 0,
+      breakfast: '',
+      temperatureMeasuredAt: '',
+      condition: '',
+      pickupPerson: 'mother',
+      pickupPersonName: '',
+      pickupTime: '',
+      status: 'draft',
+    }
+    await mutateNotebook(database, parent, {
+      commandId: 'empty-future-draft',
+      type: 'saveNotebookEntry',
+      payload,
+    })
+    const draft = (await readNotebook(database, parent)).notebookEntries.find(
+      (entry) => entry.note === payload.note,
+    )!
+    expect(draft).toMatchObject({ temperature: '', date: payload.date, status: 'draft' })
+    const patch = Object.fromEntries(
+      Object.entries(payload).filter(([key]) => key !== 'childId' && key !== 'date'),
+    )
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'save-empty-published',
+        type: 'saveNotebookEntry',
+        payload: { ...payload, status: 'published' },
+      }),
+    ).rejects.toThrow()
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'move-draft-date',
+        type: 'updateNotebookEntry',
+        payload: { id: draft.id, expectedVersion: draft.version!, patch: { date: '2026-09-22' } },
+      }),
+    ).rejects.toThrow()
+    await mutateNotebook(database, parent, {
+      commandId: 'resume-empty-draft',
+      type: 'updateNotebookEntry',
+      payload: { id: draft.id, expectedVersion: draft.version!, patch },
+    })
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'publish-empty-draft',
+        type: 'updateNotebookEntry',
+        payload: { id: draft.id, expectedVersion: 2, patch: { status: 'published' } },
+      }),
+    ).rejects.toThrow()
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'invalid-draft-temperature',
+        type: 'updateNotebookEntry',
+        payload: { id: draft.id, expectedVersion: 2, patch: { temperature: 'hot' } },
+      }),
+    ).rejects.toThrow()
+    await mutateNotebook(database, parent, {
+      commandId: 'fill-draft-temperature',
+      type: 'updateNotebookEntry',
+      payload: {
+        id: draft.id,
+        expectedVersion: 2,
+        patch: { temperature: '36.5', bedtime: '21:00' },
+      },
+    })
+    await mutateNotebook(database, parent, {
+      commandId: 'clear-draft-temperature',
+      type: 'updateNotebookEntry',
+      payload: { id: draft.id, expectedVersion: 3, patch: { temperature: '', bedtime: '' } },
+    })
+    expect(
+      (await readNotebook(database, parent)).notebookEntries.find((entry) => entry.id === draft.id),
+    ).toMatchObject({ temperature: '', bedtime: null, date: payload.date })
+    await mutateNotebook(database, parent, {
+      commandId: 'complete-empty-draft',
+      type: 'updateNotebookEntry',
+      payload: {
+        id: draft.id,
+        expectedVersion: 4,
+        patch: { temperature: '36.5', status: 'published' },
+      },
+    })
+    expect(
+      (await readNotebook(database, teacher)).notebookEntries.find(
+        (entry) => entry.id === draft.id,
+      ),
+    ).toMatchObject({ temperature: '36.5', status: 'published', date: payload.date })
+  })
+
+  it('rejects impossible notebook target dates', async () => {
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'impossible-notebook-date',
+        type: 'saveNotebookEntry',
+        payload: {
+          childId: 'c1',
+          date: '2026-02-29',
+          mood: 'normal',
+          temperature: '36.5',
+          meals: '',
+          nap: '',
+          toilet: '',
+          note: '',
+          status: 'draft',
+        },
+      }),
+    ).rejects.toThrow()
+  })
+
   it('rejects an update based on an old child version', async () => {
     await mutateNotebook(database, teacher, {
       commandId: 'first-child-update',

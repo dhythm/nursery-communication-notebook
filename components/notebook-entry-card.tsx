@@ -108,7 +108,7 @@ export function NotebookEntryCard({
           style={{ backgroundColor: mood.color }}
         >
           <span className="text-lg leading-none">{mood.emoji}</span>
-          {isTeacher ? '今日' : '今朝'}のごきげん：{mood.label}
+          {isTeacher ? '今日' : '当日朝'}のごきげん：{mood.label}
         </div>
 
         {hasStructuredHomeDetails ? (
@@ -120,8 +120,8 @@ export function NotebookEntryCard({
               const value = entry[row.key]
               return (
                 <DetailRow key={row.key} icon={Icon} label={row.label}>
-                  {value}
-                  {'suffix' in row && row.suffix ? row.suffix : ''}
+                  {value || '未記入'}
+                  {value && 'suffix' in row && row.suffix ? row.suffix : ''}
                 </DetailRow>
               )
             })}
@@ -168,26 +168,26 @@ function StructuredHomeDetails({ entry }: { entry: NotebookEntry }) {
 
   return (
     <dl className="grid gap-2 sm:grid-cols-2">
-      <DetailRow icon={UtensilsCrossed} label="昨晩の夕食">
+      <DetailRow icon={UtensilsCrossed} label="前夜の夕食">
         {entry.eveningMeal}
       </DetailRow>
       <DetailRow icon={Moon} label="就寝時間">
         {entry.bedtime}
       </DetailRow>
-      <DetailRow icon={Toilet} label="昨晩の排便">
+      <DetailRow icon={Toilet} label="前夜の排便">
         {eveningStool}
       </DetailRow>
       <DetailRow icon={Clock3} label="起床時間">
         {entry.wakeTime}
       </DetailRow>
-      <DetailRow icon={UtensilsCrossed} label="今朝の朝食">
+      <DetailRow icon={UtensilsCrossed} label="当日朝の朝食">
         {entry.breakfast}
       </DetailRow>
-      <DetailRow icon={Toilet} label="今朝の排便">
+      <DetailRow icon={Toilet} label="当日朝の排便">
         {morningStool}
       </DetailRow>
-      <DetailRow icon={Thermometer} label="今朝の体温">
-        {entry.temperature}℃
+      <DetailRow icon={Thermometer} label="当日朝の体温">
+        {entry.temperature ? `${entry.temperature}℃` : '未記入'}
         {entry.temperatureMeasuredAt ? `（${entry.temperatureMeasuredAt}測定）` : ''}
       </DetailRow>
       <DetailRow icon={UserRound} label="お迎え予定">

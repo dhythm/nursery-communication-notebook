@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { moodConfig } from '@/lib/format'
+import { formatDate, moodConfig } from '@/lib/format'
 import {
   pickupPersonLabels,
   stoolConditionLabels,
@@ -22,16 +22,18 @@ export function EntryDialog({
   open,
   onClose,
   child,
+  date,
   entry,
 }: {
   open: boolean
   onClose: () => void
   child: Child
+  date: string
   entry?: NotebookEntry
 }) {
   const { saveNotebookEntry, updateNotebookEntry } = useStore()
   const [mood, setMood] = useState<Mood>(entry?.mood ?? 'good')
-  const [temperature, setTemperature] = useState(entry?.temperature ?? '36.5')
+  const [temperature, setTemperature] = useState(entry?.temperature ?? '')
   const [eveningMeal, setEveningMeal] = useState(entry?.eveningMeal ?? '')
   const [bedtime, setBedtime] = useState(entry?.bedtime ?? '')
   const [eveningStool, setEveningStool] = useState<StoolCondition>(entry?.eveningStool ?? 'none')
@@ -51,7 +53,7 @@ export function EntryDialog({
 
   function reset() {
     setMood('good')
-    setTemperature('36.5')
+    setTemperature('')
     setEveningMeal('')
     setBedtime('')
     setEveningStool('none')
@@ -103,7 +105,7 @@ export function EntryDialog({
         mood,
         meals: breakfast || '記入なし',
         nap: bedtime && wakeTime ? `${bedtime}〜${wakeTime}` : '記入なし',
-        toilet: `昨晩 ${stoolConditionLabels[eveningStool]} ${eveningStoolCount}回・今朝 ${stoolConditionLabels[morningStool]} ${morningStoolCount}回`,
+        toilet: `前夜 ${stoolConditionLabels[eveningStool]} ${eveningStoolCount}回・当日朝 ${stoolConditionLabels[morningStool]} ${morningStoolCount}回`,
         note: note || '',
         ...structuredValues,
         condition,
@@ -113,7 +115,7 @@ export function EntryDialog({
         const patch: Partial<NotebookEntry> = { ...payload }
         delete patch.childId
         await updateNotebookEntry(entry.id, entry.version ?? 1, patch)
-      } else await saveNotebookEntry(payload)
+      } else await saveNotebookEntry({ ...payload, date })
       reset()
       onClose()
     } catch (error) {
@@ -128,7 +130,7 @@ export function EntryDialog({
       open={open}
       onClose={onClose}
       title={`${child.name.split(' ')[1] ?? child.name} の様子を${entry ? '編集' : '登録'}`}
-      description="ご家庭での様子を先生に伝えましょう"
+      description={formatDate(entry?.date ?? date)}
       footer={
         <div className="flex gap-2">
           <Button variant="outline" className="h-11 flex-1 rounded-2xl" onClick={onClose}>
@@ -159,7 +161,7 @@ export function EntryDialog({
           </p>
         )}
         <section className="space-y-4">
-          <h3 className="border-b border-border pb-2 font-bold">昨晩の様子</h3>
+          <h3 className="border-b border-border pb-2 font-bold">前夜の様子</h3>
           <Field label="夕食内容">
             <Textarea
               value={eveningMeal}
@@ -169,7 +171,7 @@ export function EntryDialog({
             />
           </Field>
           <StoolFields
-            label="昨晩の排便"
+            label="前夜の排便"
             condition={eveningStool}
             count={eveningStoolCount}
             onConditionChange={setEveningStool}
@@ -187,7 +189,7 @@ export function EntryDialog({
         </section>
 
         <section className="space-y-4">
-          <h3 className="border-b border-border pb-2 font-bold">今朝の様子</h3>
+          <h3 className="border-b border-border pb-2 font-bold">当日朝の様子</h3>
           <div className="grid grid-cols-2 gap-3">
             <Field label="起床時間">
               <Input
@@ -246,7 +248,7 @@ export function EntryDialog({
             </div>
           </div>
           <StoolFields
-            label="今朝の排便"
+            label="当日朝の排便"
             condition={morningStool}
             count={morningStoolCount}
             onConditionChange={setMorningStool}

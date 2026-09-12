@@ -24,7 +24,7 @@ describe('validateParentNotebook', () => {
 
   it('reports the first missing required field', () => {
     expect(validateParentNotebook({ ...completeEntry, bedtime: '' })).toBe(
-      '昨晩の就寝時間を入力してください。',
+      '前夜の就寝時間を入力してください。',
     )
   })
 
@@ -51,6 +51,6 @@ describe('validateParentNotebook', () => {
         morningStool: 'none',
         morningStoolCount: 1,
       }),
-    ).toBe('今朝の排便回数を確認してください。')
+    ).toBe('当日朝の排便回数を確認してください。')
   })
 })

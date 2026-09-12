@@ -217,7 +217,7 @@ export interface NotebookSnapshot {
 export type NotebookAction =
   | {
       type: 'addNotebookEntry'
-      payload: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'>
+      payload: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'> & { date?: string }
     }
   | {
       type: 'addMessage'
@@ -234,6 +234,7 @@ export type NotebookAction =
   | {
       type: 'saveNotebookEntry'
       payload: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'> & {
+        date?: string
         status: 'draft' | 'published'
       }
     }

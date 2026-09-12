@@ -1,26 +1,18 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { PencilLine } from 'lucide-react'
 import { EntryDialog } from '@/components/parent/entry-dialog'
 import { NotebookEntryCard } from '@/components/notebook-entry-card'
-import { Button } from '@/components/ui/button'
-import { formatDate, todayInTimeZone } from '@/lib/format'
+import { NotebookComposer } from '@/components/parent/notebook-composer'
+import { formatDate } from '@/lib/format'
 import { useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
-import type { NotebookEntry } from '@/lib/types'
+import type { Child, NotebookEntry } from '@/lib/types'
 
 export default function ParentNotebook() {
   const { currentUser, notebookEntries, withdrawNotebookEntry } = useStore()
   const { selectedChild } = useParent()
-  const [editingEntry, setEditingEntry] = useState<NotebookEntry | 'new' | null>(null)
-  const myToday = notebookEntries.find(
-    (entry) =>
-      entry.childId === selectedChild?.id &&
-      entry.authorId === currentUser?.id &&
-      entry.date === todayInTimeZone() &&
-      entry.status !== 'withdrawn',
-  )
+  const [editor, setEditor] = useState<{ child: Child; entry: NotebookEntry } | null>(null)
 
   const grouped = useMemo(() => {
     if (!selectedChild) return []
@@ -47,15 +39,9 @@ export default function ParentNotebook() {
             {selectedChild.name.split(' ')[1] ?? selectedChild.name} さんの記録
           </p>
         </div>
-        <Button
-          onClick={() => setEditingEntry(myToday ?? 'new')}
-          disabled={Boolean(myToday?.confirmedAt)}
-          className="h-10 rounded-2xl font-bold"
-        >
-          <PencilLine className="size-4" />
-          {myToday?.confirmedAt ? '園で確認済みです' : '記入'}
-        </Button>
       </div>
+
+      <NotebookComposer child={selectedChild} label="記入" allowDateSelection />
 
       {grouped.map(([date, entries]) => (
         <section key={date} className="space-y-3">
@@ -72,7 +58,7 @@ export default function ParentNotebook() {
               entry={entry}
               onEdit={
                 entry.authorId === currentUser?.id && !entry.confirmedAt
-                  ? () => setEditingEntry(entry)
+                  ? () => setEditor({ child: selectedChild, entry })
                   : undefined
               }
               onWithdraw={
@@ -85,13 +71,14 @@ export default function ParentNotebook() {
         </section>
       ))}
 
-      {editingEntry && (
+      {editor && (
         <EntryDialog
-          key={editingEntry === 'new' ? selectedChild.id : editingEntry.id}
+          key={editor.entry.id}
           open
-          onClose={() => setEditingEntry(null)}
-          child={selectedChild}
-          entry={editingEntry === 'new' ? undefined : editingEntry}
+          onClose={() => setEditor(null)}
+          child={editor.child}
+          date={editor.entry.date}
+          entry={editor.entry}
         />
       )}
     </div>

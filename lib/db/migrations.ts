@@ -570,6 +570,14 @@ const migrations = [
     `,
   },
   { version: 18, sql: `${riskPlanMigrationSql};${attendanceMigrationSql};${napMigrationSql}` },
+  {
+    version: 19,
+    sql: `
+      ALTER TABLE notebook_entry ALTER COLUMN temperature DROP NOT NULL;
+      ALTER TABLE notebook_entry ADD CONSTRAINT notebook_entry_published_temperature
+        CHECK (status <> 'published' OR temperature IS NOT NULL);
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

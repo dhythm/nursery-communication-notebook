@@ -35,7 +35,7 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   logout: () => Promise<void>
   facilityName: (id: string) => string
   addNotebookEntry: (
-    entry: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'>,
+    entry: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'> & { date?: string },
   ) => Promise<void>
   addMessage: (
     message: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>,
@@ -58,6 +58,7 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   updateChild: (id: string, expectedVersion: number, patch: Partial<Child>) => Promise<void>
   saveNotebookEntry: (
     entry: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'> & {
+      date?: string
       status: 'draft' | 'published'
     },
   ) => Promise<void>

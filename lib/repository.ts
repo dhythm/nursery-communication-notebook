@@ -287,7 +287,7 @@ export async function readNotebook(
         await database.query<NotebookSnapshot['notebookEntries'][number]>(
           `SELECT entry.id, entry.child_id AS "childId", entry.business_date::text AS date,
              entry.author_role AS author, entry.author_name AS "authorName", entry.mood,
-             entry.temperature::text AS temperature, entry.meals, entry.nap, entry.toilet,
+             COALESCE(entry.temperature::text, '') AS temperature, entry.meals, entry.nap, entry.toilet,
              entry.note, entry.evening_meal AS "eveningMeal",
              to_char(entry.bedtime, 'HH24:MI') AS bedtime,
              entry.evening_stool AS "eveningStool",
@@ -555,10 +555,13 @@ const temperature = z
   .regex(/^\d{2}(?:\.\d)?$/)
   .refine((value) => Number(value) >= 34 && Number(value) <= 42)
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+const notebookTime = z.union([time, z.literal('')])
+const draftTemperature = z.union([temperature, z.literal('')])
 const stoolCondition = z.enum(['none', 'normal', 'soft', 'hard', 'diarrhea'])
 const pickupPerson = z.enum(['mother', 'father', 'grandparent', 'other'])
 const notebookFields = {
   childId: id,
+  date: date.optional(),
   mood: z.enum(['good', 'normal', 'bad']),
   temperature,
   meals: text,
@@ -567,18 +570,18 @@ const notebookFields = {
   note: text,
   photo: text.optional(),
   eveningMeal: text.optional(),
-  bedtime: time.optional(),
+  bedtime: notebookTime.optional(),
   eveningStool: stoolCondition.optional(),
   eveningStoolCount: z.number().int().min(0).max(10).optional(),
-  wakeTime: time.optional(),
+  wakeTime: notebookTime.optional(),
   morningStool: stoolCondition.optional(),
   morningStoolCount: z.number().int().min(0).max(10).optional(),
   breakfast: text.optional(),
-  temperatureMeasuredAt: time.optional(),
+  temperatureMeasuredAt: notebookTime.optional(),
   condition: text.optional(),
   pickupPerson: pickupPerson.optional(),
   pickupPersonName: text.optional(),
-  pickupTime: time.optional(),
+  pickupTime: notebookTime.optional(),
 }
 const noticeFields = {
   title: text.min(1),
@@ -608,7 +611,13 @@ const commandSchema = z.discriminatedUnion('type', [
   z.object({
     commandId,
     type: z.literal('saveNotebookEntry'),
-    payload: z.object({ ...notebookFields, status: z.enum(['draft', 'published']) }).strict(),
+    payload: z
+      .object({
+        ...notebookFields,
+        temperature: draftTemperature,
+        status: z.enum(['draft', 'published']),
+      })
+      .strict(),
   }),
   z.object({
     commandId,
@@ -620,25 +629,25 @@ const commandSchema = z.discriminatedUnion('type', [
         patch: z
           .object({
             mood: notebookFields.mood.optional(),
-            temperature: temperature.optional(),
+            temperature: draftTemperature.optional(),
             meals: text.optional(),
             nap: text.optional(),
             toilet: text.optional(),
             note: text.optional(),
             photo: text.nullable().optional(),
             eveningMeal: text.optional(),
-            bedtime: time.optional(),
+            bedtime: notebookTime.optional(),
             eveningStool: stoolCondition.optional(),
             eveningStoolCount: z.number().int().min(0).max(10).optional(),
-            wakeTime: time.optional(),
+            wakeTime: notebookTime.optional(),
             morningStool: stoolCondition.optional(),
             morningStoolCount: z.number().int().min(0).max(10).optional(),
             breakfast: text.optional(),
-            temperatureMeasuredAt: time.optional(),
+            temperatureMeasuredAt: notebookTime.optional(),
             condition: text.optional(),
             pickupPerson: pickupPerson.optional(),
             pickupPersonName: text.optional(),
-            pickupTime: time.optional(),
+            pickupTime: notebookTime.optional(),
             status: z.enum(['draft', 'published']).optional(),
           })
           .strict(),
@@ -1218,6 +1227,7 @@ export async function mutateNotebook(
       throw new Error('Forbidden')
     const entryId = randomUUID()
     const status = command.type === 'addNotebookEntry' ? 'published' : command.payload.status
+    if (status === 'published') temperature.parse(command.payload.temperature)
     await database.transaction(async (transaction) => {
       if (!(await acceptCommand(transaction, user.id, command.commandId))) return
       await transaction.query(
@@ -1236,29 +1246,29 @@ export async function mutateNotebook(
           entryId,
           user.facilityId,
           command.payload.childId,
-          todayInTimeZone(now),
+          command.payload.date ?? todayInTimeZone(now),
           user.id,
           user.role,
           user.name,
           command.payload.mood,
-          command.payload.temperature,
+          command.payload.temperature || null,
           command.payload.meals,
           command.payload.nap,
           command.payload.toilet,
           command.payload.note,
           command.payload.eveningMeal ?? null,
-          command.payload.bedtime ?? null,
+          command.payload.bedtime || null,
           command.payload.eveningStool ?? null,
           command.payload.eveningStoolCount ?? null,
-          command.payload.wakeTime ?? null,
+          command.payload.wakeTime || null,
           command.payload.morningStool ?? null,
           command.payload.morningStoolCount ?? null,
           command.payload.breakfast ?? null,
-          command.payload.temperatureMeasuredAt ?? null,
+          command.payload.temperatureMeasuredAt || null,
           command.payload.condition ?? null,
           command.payload.pickupPerson ?? null,
           command.payload.pickupPersonName ?? null,
-          command.payload.pickupTime ?? null,
+          command.payload.pickupTime || null,
           command.payload.photo ?? null,
           status,
           now.toISOString(),
@@ -1330,30 +1340,36 @@ export async function mutateNotebook(
     const existing = snapshot.notebookEntries.find((entry) => entry.id === command.payload.id)
     if (!existing || existing.authorId !== user.id) throw new Error('Forbidden')
     if (user.role === 'parent' && existing.confirmedAt) throw new Error('Locked')
+    if (
+      command.type === 'updateNotebookEntry' &&
+      (command.payload.patch.status ?? existing.status) === 'published'
+    ) {
+      temperature.parse(command.payload.patch.temperature ?? existing.temperature)
+    }
     await database.transaction(async (transaction) => {
       if (!(await acceptCommand(transaction, user.id, command.commandId))) return
       const patch = command.type === 'updateNotebookEntry' ? command.payload.patch : {}
       const status = command.type === 'withdrawNotebookEntry' ? 'withdrawn' : patch.status
       const updated = await transaction.query<{ version: number }>(
         `UPDATE notebook_entry SET
-           mood = COALESCE($2, mood), temperature = COALESCE($3::numeric, temperature),
+           mood = COALESCE($2, mood), temperature = CASE WHEN $3::text IS NULL THEN temperature ELSE NULLIF($3, '')::numeric END,
            meals = COALESCE($4, meals), nap = COALESCE($5, nap),
            toilet = COALESCE($6, toilet), note = COALESCE($7, note),
            photo = CASE WHEN $8::boolean THEN $9 ELSE photo END,
            status = COALESCE($10, status),
            published_at = CASE WHEN $10 = 'published' AND published_at IS NULL THEN $11 ELSE published_at END,
            withdrawn_at = CASE WHEN $10 = 'withdrawn' THEN $11 ELSE withdrawn_at END,
-           evening_meal = COALESCE($15, evening_meal), bedtime = COALESCE($16::time, bedtime),
+           evening_meal = COALESCE($15, evening_meal), bedtime = CASE WHEN $16::text IS NULL THEN bedtime ELSE NULLIF($16, '')::time END,
            evening_stool = COALESCE($17, evening_stool),
            evening_stool_count = COALESCE($18, evening_stool_count),
-           wake_time = COALESCE($19::time, wake_time),
+           wake_time = CASE WHEN $19::text IS NULL THEN wake_time ELSE NULLIF($19, '')::time END,
            morning_stool = COALESCE($20, morning_stool),
            morning_stool_count = COALESCE($21, morning_stool_count),
            breakfast = COALESCE($22, breakfast),
-           temperature_measured_at = COALESCE($23::time, temperature_measured_at),
+           temperature_measured_at = CASE WHEN $23::text IS NULL THEN temperature_measured_at ELSE NULLIF($23, '')::time END,
            condition = COALESCE($24, condition), pickup_person = COALESCE($25, pickup_person),
            pickup_person_name = COALESCE($26, pickup_person_name),
-           pickup_time = COALESCE($27::time, pickup_time),
+           pickup_time = CASE WHEN $27::text IS NULL THEN pickup_time ELSE NULLIF($27, '')::time END,
            version = version + 1, updated_at = $11
          WHERE id = $1 AND facility_id = $12 AND author_user_id = $13 AND version = $14
            AND status <> 'withdrawn'

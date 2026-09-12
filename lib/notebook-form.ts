@@ -32,16 +32,16 @@ interface ParentNotebookValues {
 }
 
 export function validateParentNotebook(values: ParentNotebookValues): string | null {
-  if (!values.eveningMeal.trim()) return '昨晩の夕食内容を入力してください。'
-  if (!values.bedtime) return '昨晩の就寝時間を入力してください。'
-  if (!values.wakeTime) return '今朝の起床時間を入力してください。'
-  if (!values.breakfast.trim()) return '今朝の朝食内容を入力してください。'
-  if (!values.temperature) return '今朝の体温を入力してください。'
+  if (!values.eveningMeal.trim()) return '前夜の夕食内容を入力してください。'
+  if (!values.bedtime) return '前夜の就寝時間を入力してください。'
+  if (!values.wakeTime) return '当日朝の起床時間を入力してください。'
+  if (!values.breakfast.trim()) return '当日朝の朝食内容を入力してください。'
+  if (!values.temperature) return '当日朝の体温を入力してください。'
   if (!values.temperatureMeasuredAt) return '体温を測った時間を入力してください。'
   if (values.eveningStool === 'none' && values.eveningStoolCount !== 0)
-    return '昨晩の排便回数を確認してください。'
+    return '前夜の排便回数を確認してください。'
   if (values.morningStool === 'none' && values.morningStoolCount !== 0)
-    return '今朝の排便回数を確認してください。'
+    return '当日朝の排便回数を確認してください。'
   if (values.pickupPerson === 'other' && !values.pickupPersonName.trim())
     return 'お迎えに来る方の名前を入力してください。'
   if (!values.pickupTime) return 'お迎え予定時刻を入力してください。'

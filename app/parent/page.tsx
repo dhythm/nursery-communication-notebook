@@ -1,19 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
-import {
-  Bell,
-  CalendarDays,
-  ChevronRight,
-  NotebookPen,
-  PencilLine,
-  Thermometer,
-} from 'lucide-react'
-import { EntryDialog } from '@/components/parent/entry-dialog'
+import { Bell, CalendarDays, ChevronRight, NotebookPen, Thermometer } from 'lucide-react'
+import { NotebookComposer } from '@/components/parent/notebook-composer'
 import { NotebookEntryCard } from '@/components/notebook-entry-card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { ChildAvatar } from '@/components/ui/child-avatar'
 import {
   ageFromBirthday,
@@ -27,7 +18,7 @@ import {
 import { useParent } from '@/lib/parent-context'
 import { useFacilityPath } from '@/lib/facility-path-client'
 import { useStore } from '@/lib/store'
-import type { Child, NotebookEntry } from '@/lib/types'
+import { useCurrentTime } from '@/lib/use-current-time'
 
 export default function ParentHome() {
   const {
@@ -40,10 +31,8 @@ export default function ParentHome() {
   } = useStore()
   const { selectedChild } = useParent()
   const facilityPath = useFacilityPath()
-  const [entryEditor, setEntryEditor] = useState<{ child: Child; entry?: NotebookEntry } | null>(
-    null,
-  )
-  const today = todayInTimeZone()
+  const now = useCurrentTime()
+  const today = todayInTimeZone(now)
 
   if (!selectedChild) return null
 
@@ -51,8 +40,6 @@ export default function ParentHome() {
     (e) => e.childId === selectedChild.id && e.date === today,
   )
   const teacherToday = todayEntries.find((e) => e.author === 'teacher')
-  const myToday = todayEntries.find((e) => e.authorId === currentUser?.id)
-  const latestEntry = notebookEntries.find((e) => e.childId === selectedChild.id)
   const upcoming = [...calendarEvents]
     .filter((e) => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -101,14 +88,7 @@ export default function ParentHome() {
         </div>
       </section>
 
-      <Button
-        onClick={() => setEntryEditor({ child: selectedChild, entry: myToday })}
-        disabled={Boolean(myToday?.confirmedAt)}
-        className="h-14 w-full rounded-3xl text-base font-bold shadow-sm"
-      >
-        <PencilLine className="size-5" />
-        {myToday?.confirmedAt ? '園で確認済みです' : '子どもの様子を登録する'}
-      </Button>
+      <NotebookComposer child={selectedChild} />
 
       <section className="space-y-3">
         <SectionHeader
@@ -118,10 +98,8 @@ export default function ParentHome() {
         />
         {todayEntries.length > 0 ? (
           todayEntries.map((entry) => <NotebookEntryCard key={entry.id} entry={entry} />)
-        ) : latestEntry ? (
-          <NotebookEntryCard entry={latestEntry} showDate />
         ) : (
-          <EmptyCard text="まだ連絡帳の記録がありません" />
+          <EmptyCard text="今日の連絡帳はまだありません" />
         )}
       </section>
 
@@ -208,16 +186,6 @@ export default function ParentHome() {
           ))}
         </div>
       </section>
-
-      {entryEditor && (
-        <EntryDialog
-          key={entryEditor.entry?.id ?? entryEditor.child.id}
-          open
-          onClose={() => setEntryEditor(null)}
-          child={entryEditor.child}
-          entry={entryEditor.entry}
-        />
-      )}
     </div>
   )
 }
