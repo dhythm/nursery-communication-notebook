@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { OperationsPage } from '@/components/operations/operations-page'
 import { requireFacilityRole } from '@/lib/auth/server'
 import ParentHome from '@/app/parent/page'
 import ParentFiles from '@/app/parent/files/page'
@@ -32,6 +33,11 @@ const parentPages: Record<string, React.ComponentType> = {
 
 const teacherPages: Record<string, React.ComponentType> = {
   '': TeacherDashboard,
+  operations: () => <OperationsPage />,
+  'operations/risks': () => <OperationsPage section="risks" />,
+  'operations/attendance': () => <OperationsPage section="attendance" />,
+  'operations/plans': () => <OperationsPage section="plans" />,
+  'operations/nap': () => <OperationsPage section="nap" />,
   audit: TeacherAudit,
   calendar: TeacherCalendar,
   children: TeacherChildren,

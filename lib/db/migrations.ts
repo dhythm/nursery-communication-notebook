@@ -1,4 +1,7 @@
 import type { Database } from './index'
+import { riskPlanMigrationSql } from '../operations/risk-plans-schema'
+import { attendanceMigrationSql } from '../operations/attendance-schema'
+import { napMigrationSql } from '../operations/nap-schema'
 
 const migrations = [
   {
@@ -550,6 +553,7 @@ const migrations = [
         ON message_template(facility_id, created_at, id);
     `,
   },
+  { version: 17, sql: `${riskPlanMigrationSql};${attendanceMigrationSql};${napMigrationSql}` },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {
