@@ -77,6 +77,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - name: Upload Playwright screenshots
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots-${{ github.event.pull_request.number || github.run_number }}
+          path: test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 14
 
   build:
     name: Build
