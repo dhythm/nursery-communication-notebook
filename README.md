@@ -67,6 +67,17 @@ pnpm db:down        # コンテナー停止・削除（ボリュームは保持�
 `NODE_ENV=production` はNext.jsのビルドモードなので、`APP_ENV=development` を明示したローカル検証は可能です。
 Clerkでメールアドレスの確認、パスワード管理、セッション管理を行います。先生画面の「運用管理」で利用者を先に登録し、同じ確認済みメールアドレスでClerkへ登録すると、初回ログイン時に園・ロールへ紐づきます。園に登録されていないメールアドレスでは園データへアクセスできません。
 
+本番DBの初期化ではデモデータを投入しません。マイグレーション後、最初の園と管理者だけを環境値で登録します。同じ園slug・管理者メールでの再実行は安全です。以後の利用者・園児・クラスは管理者が「運用管理」から登録します。
+
+```sh
+pnpm db:setup
+BOOTSTRAP_FACILITY_SLUG=aozora \
+BOOTSTRAP_FACILITY_NAME=あおぞら保育園 \
+BOOTSTRAP_MANAGER_NAME=園長花子 \
+BOOTSTRAP_MANAGER_EMAIL=director@example.com \
+pnpm db:bootstrap
+```
+
 初回は保護者として認証されます。トップページから保護者／保育士を切り替えられ、選択はHttpOnly Cookieに保存します。
 ログアウトすると選択を解除してトップページへ戻り、既定の保護者に戻ります。
 サーバーで画面・APIのロールと施設・園児へのアクセスを確認しています。

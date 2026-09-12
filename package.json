@@ -26,6 +26,7 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:setup": "node --import tsx scripts/environment.ts configured setup",
+    "db:bootstrap": "node --import tsx scripts/bootstrap-facility.ts",
     "db:check": "node --import tsx scripts/environment.ts configured check",
     "db:setup:agent": "node --import tsx scripts/environment.ts agent setup",
     "db:check:agent": "node --import tsx scripts/environment.ts agent check",

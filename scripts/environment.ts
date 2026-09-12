@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { loadEnvConfig } from '@next/env'
 import { createDatabase, migrateDatabase, seedDatabase, checkDatabase } from '../lib/db'
+import { shouldSeedDemoData } from '../lib/demo-data-policy'
 import { getRuntimeConfig } from '../lib/runtime-config'
 import { seedNotebook } from '../lib/repository'
 
@@ -32,8 +33,10 @@ async function main() {
     try {
       if (command !== 'check') {
         await migrateDatabase(database)
-        await seedDatabase(database)
-        await seedNotebook(database)
+        if (shouldSeedDemoData(config.appEnv)) {
+          await seedDatabase(database)
+          await seedNotebook(database)
+        }
       }
       console.log({ provider: config.databaseProvider, ...(await checkDatabase(database)) })
     } finally {

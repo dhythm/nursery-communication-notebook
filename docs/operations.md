@@ -1,5 +1,9 @@
 # 運用・復旧手順
 
+## 初回開設
+
+本番では `pnpm db:setup` でマイグレーションだけを適用し、デモデータは投入しません。続けて `BOOTSTRAP_FACILITY_SLUG`、`BOOTSTRAP_FACILITY_NAME`、`BOOTSTRAP_MANAGER_NAME`、`BOOTSTRAP_MANAGER_EMAIL` を設定して `pnpm db:bootstrap` を実行します。登録した管理者メールでClerkへサインアップ後、画面の「運用管理」から職員・保護者・クラス・園児を登録します。
+
 ## 監視
 
 - `/api/health/live`: プロセスの死活監視。200以外で再起動します。
