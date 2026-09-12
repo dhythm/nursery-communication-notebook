@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { moodConfig, formatDate } from '@/lib/format'
-import { mealAmountLabels, pickupPersonLabels, stoolConditionLabels } from '@/lib/notebook-form'
+import { pickupPersonLabels, stoolConditionLabels } from '@/lib/notebook-form'
 import type { NotebookEntry } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -141,9 +141,6 @@ function StructuredHomeDetails({ entry }: { entry: NotebookEntry }) {
   const morningStool = entry.morningStool
     ? `${stoolConditionLabels[entry.morningStool]}・${entry.morningStoolCount ?? 0}回`
     : '記入なし'
-  const breakfastAmount = entry.breakfastAmount
-    ? `（${mealAmountLabels[entry.breakfastAmount]}）`
-    : ''
   const pickupPerson = entry.pickupPerson
     ? entry.pickupPerson === 'other' && entry.pickupPersonName
       ? entry.pickupPersonName
@@ -165,13 +162,14 @@ function StructuredHomeDetails({ entry }: { entry: NotebookEntry }) {
         {entry.wakeTime}
       </DetailRow>
       <DetailRow icon={UtensilsCrossed} label="今朝の朝食">
-        {entry.breakfast} {breakfastAmount}
+        {entry.breakfast}
       </DetailRow>
       <DetailRow icon={Toilet} label="今朝の排便">
         {morningStool}
       </DetailRow>
       <DetailRow icon={Thermometer} label="今朝の体温">
         {entry.temperature}℃
+        {entry.temperatureMeasuredAt ? `（${entry.temperatureMeasuredAt}測定）` : ''}
       </DetailRow>
       <DetailRow icon={UserRound} label="お迎え予定">
         {pickupPerson}・{entry.pickupTime}

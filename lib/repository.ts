@@ -280,7 +280,8 @@ export async function readNotebook(
              to_char(entry.wake_time, 'HH24:MI') AS "wakeTime",
              entry.morning_stool AS "morningStool",
              entry.morning_stool_count AS "morningStoolCount",
-             entry.breakfast, entry.breakfast_amount AS "breakfastAmount",
+             entry.breakfast,
+             to_char(entry.temperature_measured_at, 'HH24:MI') AS "temperatureMeasuredAt",
              entry.condition, entry.pickup_person AS "pickupPerson",
              entry.pickup_person_name AS "pickupPersonName",
              to_char(entry.pickup_time, 'HH24:MI') AS "pickupTime",
@@ -509,11 +510,10 @@ const temperature = z
   .refine((value) => Number(value) >= 34 && Number(value) <= 42)
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
 const stoolCondition = z.enum(['none', 'normal', 'soft', 'hard', 'diarrhea'])
-const mealAmount = z.enum(['all', 'most', 'half', 'little', 'none'])
 const pickupPerson = z.enum(['mother', 'father', 'grandparent', 'other'])
 const notebookFields = {
   childId: id,
-  mood: z.enum(['genki', 'normal', 'tired', 'sick']),
+  mood: z.enum(['good', 'normal', 'bad']),
   temperature,
   meals: text,
   nap: text,
@@ -528,7 +528,7 @@ const notebookFields = {
   morningStool: stoolCondition.optional(),
   morningStoolCount: z.number().int().min(0).max(10).optional(),
   breakfast: text.optional(),
-  breakfastAmount: mealAmount.optional(),
+  temperatureMeasuredAt: time.optional(),
   condition: text.optional(),
   pickupPerson: pickupPerson.optional(),
   pickupPersonName: text.optional(),
@@ -588,7 +588,7 @@ const commandSchema = z.discriminatedUnion('type', [
             morningStool: stoolCondition.optional(),
             morningStoolCount: z.number().int().min(0).max(10).optional(),
             breakfast: text.optional(),
-            breakfastAmount: mealAmount.optional(),
+            temperatureMeasuredAt: time.optional(),
             condition: text.optional(),
             pickupPerson: pickupPerson.optional(),
             pickupPersonName: text.optional(),
@@ -992,7 +992,7 @@ export async function mutateNotebook(
          (id, facility_id, child_id, business_date, author_user_id, author_role, author_name,
           mood, temperature, meals, nap, toilet, note, evening_meal, bedtime,
           evening_stool, evening_stool_count, wake_time, morning_stool, morning_stool_count,
-          breakfast, breakfast_amount, condition, pickup_person, pickup_person_name, pickup_time,
+          breakfast, temperature_measured_at, condition, pickup_person, pickup_person_name, pickup_time,
           photo, status, published_at,
           created_at, updated_at)
          VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, $9::numeric, $10, $11, $12,
@@ -1021,7 +1021,7 @@ export async function mutateNotebook(
           command.payload.morningStool ?? null,
           command.payload.morningStoolCount ?? null,
           command.payload.breakfast ?? null,
-          command.payload.breakfastAmount ?? null,
+          command.payload.temperatureMeasuredAt ?? null,
           command.payload.condition ?? null,
           command.payload.pickupPerson ?? null,
           command.payload.pickupPersonName ?? null,
@@ -1079,7 +1079,8 @@ export async function mutateNotebook(
            wake_time = COALESCE($19::time, wake_time),
            morning_stool = COALESCE($20, morning_stool),
            morning_stool_count = COALESCE($21, morning_stool_count),
-           breakfast = COALESCE($22, breakfast), breakfast_amount = COALESCE($23, breakfast_amount),
+           breakfast = COALESCE($22, breakfast),
+           temperature_measured_at = COALESCE($23::time, temperature_measured_at),
            condition = COALESCE($24, condition), pickup_person = COALESCE($25, pickup_person),
            pickup_person_name = COALESCE($26, pickup_person_name),
            pickup_time = COALESCE($27::time, pickup_time),
@@ -1110,7 +1111,7 @@ export async function mutateNotebook(
           'morningStool' in patch ? (patch.morningStool ?? null) : null,
           'morningStoolCount' in patch ? (patch.morningStoolCount ?? null) : null,
           'breakfast' in patch ? (patch.breakfast ?? null) : null,
-          'breakfastAmount' in patch ? (patch.breakfastAmount ?? null) : null,
+          'temperatureMeasuredAt' in patch ? (patch.temperatureMeasuredAt ?? null) : null,
           'condition' in patch ? (patch.condition ?? null) : null,
           'pickupPerson' in patch ? (patch.pickupPerson ?? null) : null,
           'pickupPersonName' in patch ? (patch.pickupPersonName ?? null) : null,

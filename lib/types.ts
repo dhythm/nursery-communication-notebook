@@ -40,9 +40,8 @@ export interface Child {
   updatedAt?: string
 }
 
-export type Mood = 'genki' | 'normal' | 'tired' | 'sick'
+export type Mood = 'good' | 'normal' | 'bad'
 export type StoolCondition = 'none' | 'normal' | 'soft' | 'hard' | 'diarrhea'
-export type MealAmount = 'all' | 'most' | 'half' | 'little' | 'none'
 export type PickupPerson = 'mother' | 'father' | 'grandparent' | 'other'
 
 export interface NotebookEntry {
@@ -65,7 +64,7 @@ export interface NotebookEntry {
   morningStool?: StoolCondition
   morningStoolCount?: number
   breakfast?: string
-  breakfastAmount?: MealAmount
+  temperatureMeasuredAt?: string
   condition?: string
   pickupPerson?: PickupPerson
   pickupPersonName?: string

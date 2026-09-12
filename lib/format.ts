@@ -56,10 +56,9 @@ export function ageFromBirthday(iso: string, asOf = todayInTimeZone()): string {
 }
 
 export const moodConfig: Record<Mood, { label: string; emoji: string; color: string }> = {
-  genki: { label: 'げんき', emoji: '◎', color: 'oklch(0.67 0.13 158)' },
+  good: { label: 'よい', emoji: '◎', color: 'oklch(0.67 0.13 158)' },
   normal: { label: 'ふつう', emoji: '○', color: 'oklch(0.78 0.13 75)' },
-  tired: { label: 'つかれ気味', emoji: '△', color: 'oklch(0.7 0.13 40)' },
-  sick: { label: '体調不良', emoji: '×', color: 'oklch(0.62 0.19 25)' },
+  bad: { label: 'わるい', emoji: '△', color: 'oklch(0.62 0.19 25)' },
 }
 
 export const eventColor: Record<EventType, string> = {

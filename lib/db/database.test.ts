@@ -34,10 +34,10 @@ describe('PGlite database', () => {
     const database = await openDatabase()
     await migrateDatabase(database)
     await migrateDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 8, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 10, seeded: false })
     await seedDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 8, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 10, seeded: true })
     expect((await database.query('SELECT id, name, slug FROM facility')).rows).toEqual([
       { id: 'sample-facility', name: 'サンプル保育園', slug: 'sample-nursery' },
     ])
@@ -100,6 +100,8 @@ describe('PGlite database', () => {
       { version: 6 },
       { version: 7 },
       { version: 8 },
+      { version: 9 },
+      { version: 10 },
     ])
   }, 20_000)
 
@@ -111,7 +113,7 @@ describe('PGlite database', () => {
     await seedDatabase(database)
     await database.close()
     const reopened = await openDatabase(directory)
-    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 8, seeded: true })
+    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 10, seeded: true })
   }, 20_000)
 
   it('creates missing parent directories for a persistent database', async () => {
@@ -120,7 +122,7 @@ describe('PGlite database', () => {
     const database = await openDatabase(join(directory, 'missing-parent', 'pglite'))
     await migrateDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 8, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 10, seeded: true })
   }, 20_000)
 
   it('fails readiness checks before migrations have run', async () => {
@@ -249,7 +251,7 @@ describe('PGlite database', () => {
         )
       ).rows,
     ).toEqual([{ id: 'legacy-child', class_name: '既存組' }])
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 8, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 10, seeded: false })
   }, 20_000)
 
   it('creates constrained workflow, notification, audit, and file tables', async () => {

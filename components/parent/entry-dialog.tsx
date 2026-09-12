@@ -7,20 +7,12 @@ import { Modal } from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
 import { moodConfig } from '@/lib/format'
 import {
-  mealAmountLabels,
   pickupPersonLabels,
   stoolConditionLabels,
   validateParentNotebook,
 } from '@/lib/notebook-form'
 import { useStore } from '@/lib/store'
-import type {
-  Child,
-  MealAmount,
-  Mood,
-  NotebookEntry,
-  PickupPerson,
-  StoolCondition,
-} from '@/lib/types'
+import type { Child, Mood, NotebookEntry, PickupPerson, StoolCondition } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const moods = Object.keys(moodConfig) as Mood[]
@@ -36,8 +28,8 @@ export function EntryDialog({
   child: Child
   entry?: NotebookEntry
 }) {
-  const { saveNotebookEntry, updateNotebookEntry, uploadFile } = useStore()
-  const [mood, setMood] = useState<Mood>(entry?.mood ?? 'genki')
+  const { saveNotebookEntry, updateNotebookEntry } = useStore()
+  const [mood, setMood] = useState<Mood>(entry?.mood ?? 'good')
   const [temperature, setTemperature] = useState(entry?.temperature ?? '36.5')
   const [eveningMeal, setEveningMeal] = useState(entry?.eveningMeal ?? '')
   const [bedtime, setBedtime] = useState(entry?.bedtime ?? '')
@@ -47,18 +39,17 @@ export function EntryDialog({
   const [morningStool, setMorningStool] = useState<StoolCondition>(entry?.morningStool ?? 'none')
   const [morningStoolCount, setMorningStoolCount] = useState(entry?.morningStoolCount ?? 0)
   const [breakfast, setBreakfast] = useState(entry?.breakfast ?? '')
-  const [breakfastAmount, setBreakfastAmount] = useState<MealAmount>(
-    entry?.breakfastAmount ?? 'all',
+  const [temperatureMeasuredAt, setTemperatureMeasuredAt] = useState(
+    entry?.temperatureMeasuredAt ?? '',
   )
   const [condition, setCondition] = useState(entry?.condition ?? '')
   const [pickupPerson, setPickupPerson] = useState<PickupPerson>(entry?.pickupPerson ?? 'mother')
   const [pickupPersonName, setPickupPersonName] = useState(entry?.pickupPersonName ?? '')
   const [pickupTime, setPickupTime] = useState(entry?.pickupTime ?? '')
   const [note, setNote] = useState(entry?.note ?? '')
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
 
   function reset() {
-    setMood('genki')
+    setMood('good')
     setTemperature('36.5')
     setEveningMeal('')
     setBedtime('')
@@ -68,7 +59,7 @@ export function EntryDialog({
     setMorningStool('none')
     setMorningStoolCount(0)
     setBreakfast('')
-    setBreakfastAmount('all')
+    setTemperatureMeasuredAt('')
     setCondition('')
     setPickupPerson('mother')
     setPickupPersonName('')
@@ -90,8 +81,8 @@ export function EntryDialog({
       morningStool,
       morningStoolCount,
       breakfast,
-      breakfastAmount,
       temperature,
+      temperatureMeasuredAt,
       pickupPerson,
       pickupPersonName,
       pickupTime,
@@ -106,9 +97,6 @@ export function EntryDialog({
     setIsSaving(true)
     setError(null)
     try {
-      const photo = photoFile
-        ? await uploadFile(photoFile, `${child.name}の連絡帳写真`, undefined, 'notebook', child.id)
-        : entry?.photo
       const payload = {
         childId: child.id,
         mood,
@@ -118,7 +106,6 @@ export function EntryDialog({
         note: note || '',
         ...structuredValues,
         condition,
-        ...(photo ? { photo } : {}),
         status,
       } as const
       if (entry) {
@@ -180,51 +167,54 @@ export function EntryDialog({
               className="min-h-16"
             />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="就寝時間">
-              <Input
-                type="time"
-                value={bedtime}
-                onChange={(event) => setBedtime(event.target.value)}
-              />
-            </Field>
-            <StoolFields
-              label="昨晩の排便"
-              condition={eveningStool}
-              count={eveningStoolCount}
-              onConditionChange={setEveningStool}
-              onCountChange={setEveningStoolCount}
+          <StoolFields
+            label="昨晩の排便"
+            condition={eveningStool}
+            count={eveningStoolCount}
+            onConditionChange={setEveningStool}
+            onCountChange={setEveningStoolCount}
+          />
+          <Field label="就寝時間">
+            <Input
+              type="time"
+              value={bedtime}
+              onChange={(event) => setBedtime(event.target.value)}
             />
-          </div>
+          </Field>
         </section>
 
         <section className="space-y-4">
           <h3 className="border-b border-border pb-2 font-bold">今朝の様子</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="起床時間">
+          <Field label="起床時間">
+            <Input
+              type="time"
+              value={wakeTime}
+              onChange={(event) => setWakeTime(event.target.value)}
+            />
+          </Field>
+          <Field label="体温">
+            <div className="flex items-center gap-2">
               <Input
-                type="time"
-                value={wakeTime}
-                onChange={(event) => setWakeTime(event.target.value)}
+                type="number"
+                step="0.1"
+                min="34"
+                max="42"
+                value={temperature}
+                onChange={(event) => setTemperature(event.target.value)}
               />
-            </Field>
-            <Field label="体温">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="34"
-                  max="42"
-                  value={temperature}
-                  onChange={(event) => setTemperature(event.target.value)}
-                />
-                <span className="text-sm text-muted-foreground">℃</span>
-              </div>
-            </Field>
-          </div>
+              <span className="text-sm text-muted-foreground">℃</span>
+            </div>
+          </Field>
+          <Field label="検温時刻">
+            <Input
+              type="time"
+              value={temperatureMeasuredAt}
+              onChange={(event) => setTemperatureMeasuredAt(event.target.value)}
+            />
+          </Field>
           <div>
             <p className="mb-2 text-sm font-semibold">きげん・体調</p>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {moods.map((m) => {
                 const cfg = moodConfig[m]
                 const active = mood === m
@@ -263,13 +253,6 @@ export function EntryDialog({
               className="min-h-16"
             />
           </Field>
-          <Field label="朝食の量">
-            <ChoiceSelect
-              value={breakfastAmount}
-              options={mealAmountLabels}
-              onChange={(value) => setBreakfastAmount(value as MealAmount)}
-            />
-          </Field>
           <Field label="子どもの様子">
             <Textarea
               value={condition}
@@ -281,22 +264,20 @@ export function EntryDialog({
 
         <section className="space-y-4">
           <h3 className="border-b border-border pb-2 font-bold">お迎え予定・連絡</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="お迎えに来る方">
-              <ChoiceSelect
-                value={pickupPerson}
-                options={pickupPersonLabels}
-                onChange={(value) => setPickupPerson(value as PickupPerson)}
-              />
-            </Field>
-            <Field label="お迎え予定時刻">
-              <Input
-                type="time"
-                value={pickupTime}
-                onChange={(event) => setPickupTime(event.target.value)}
-              />
-            </Field>
-          </div>
+          <Field label="お迎えに来る方">
+            <ChoiceSelect
+              value={pickupPerson}
+              options={pickupPersonLabels}
+              onChange={(value) => setPickupPerson(value as PickupPerson)}
+            />
+          </Field>
+          <Field label="お迎え予定時刻">
+            <Input
+              type="time"
+              value={pickupTime}
+              onChange={(event) => setPickupTime(event.target.value)}
+            />
+          </Field>
           {pickupPerson === 'other' && (
             <Field label="お迎えに来る方の名前">
               <Input
@@ -313,13 +294,6 @@ export function EntryDialog({
             />
           </Field>
         </section>
-        <Field label="写真">
-          <Input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
-          />
-        </Field>
       </div>
     </Modal>
   )

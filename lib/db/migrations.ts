@@ -451,6 +451,26 @@ const migrations = [
       ALTER TABLE notebook_entry ADD COLUMN pickup_time time;
     `,
   },
+  {
+    version: 9,
+    sql: `
+      ALTER TABLE notebook_entry ADD COLUMN temperature_measured_at time;
+      ALTER TABLE notebook_entry DROP COLUMN breakfast_amount;
+    `,
+  },
+  {
+    version: 10,
+    sql: `
+      ALTER TABLE notebook_entry DROP CONSTRAINT notebook_entry_mood_check;
+      UPDATE notebook_entry SET mood = CASE
+        WHEN mood = 'genki' THEN 'good'
+        WHEN mood IN ('tired', 'sick') THEN 'bad'
+        ELSE mood
+      END;
+      ALTER TABLE notebook_entry ADD CONSTRAINT notebook_entry_mood_check
+        CHECK (mood IN ('good', 'normal', 'bad'));
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

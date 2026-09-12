@@ -24,7 +24,7 @@ export function TeacherEntryDialog({
   entry?: NotebookEntry
 }) {
   const { saveNotebookEntry, updateNotebookEntry, uploadFile } = useStore()
-  const [mood, setMood] = useState<Mood>(entry?.mood ?? 'genki')
+  const [mood, setMood] = useState<Mood>(entry?.mood ?? 'good')
   const [temperature, setTemperature] = useState(entry?.temperature ?? '36.5')
   const [meals, setMeals] = useState(entry?.meals ?? '')
   const [nap, setNap] = useState(entry?.nap ?? '')
@@ -59,7 +59,7 @@ export function TeacherEntryDialog({
         delete patch.childId
         await updateNotebookEntry(entry.id, entry.version ?? 1, patch)
       } else await saveNotebookEntry(payload)
-      setMood('genki')
+      setMood('good')
       setTemperature('36.5')
       setMeals('')
       setNap('')
@@ -110,7 +110,7 @@ export function TeacherEntryDialog({
         )}
         <div>
           <p className="mb-2 text-sm font-semibold">今日のごきげん・体調</p>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {moods.map((m) => {
               const cfg = moodConfig[m]
               const active = mood === m

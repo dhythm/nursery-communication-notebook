@@ -10,8 +10,8 @@ const completeEntry = {
   morningStool: 'none' as const,
   morningStoolCount: 0,
   breakfast: 'トースト、バナナ、牛乳',
-  breakfastAmount: 'most' as const,
   temperature: '36.5',
+  temperatureMeasuredAt: '07:00',
   pickupPerson: 'mother' as const,
   pickupPersonName: '',
   pickupTime: '17:30',
@@ -25,6 +25,12 @@ describe('validateParentNotebook', () => {
   it('reports the first missing required field', () => {
     expect(validateParentNotebook({ ...completeEntry, bedtime: '' })).toBe(
       '昨晩の就寝時間を入力してください。',
+    )
+  })
+
+  it('requires the time at which temperature was measured', () => {
+    expect(validateParentNotebook({ ...completeEntry, temperatureMeasuredAt: '' })).toBe(
+      '体温を測った時間を入力してください。',
     )
   })
 

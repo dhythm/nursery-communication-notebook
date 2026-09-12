@@ -1,4 +1,4 @@
-import type { MealAmount, PickupPerson, StoolCondition } from './types'
+import type { PickupPerson, StoolCondition } from './types'
 
 export const stoolConditionLabels: Record<StoolCondition, string> = {
   none: 'なし',
@@ -6,14 +6,6 @@ export const stoolConditionLabels: Record<StoolCondition, string> = {
   soft: '軟らかめ',
   hard: '硬め',
   diarrhea: '下痢',
-}
-
-export const mealAmountLabels: Record<MealAmount, string> = {
-  all: '完食',
-  most: 'ほとんど',
-  half: '半分くらい',
-  little: '少し',
-  none: '食べていない',
 }
 
 export const pickupPersonLabels: Record<PickupPerson, string> = {
@@ -32,8 +24,8 @@ interface ParentNotebookValues {
   morningStool: StoolCondition
   morningStoolCount: number
   breakfast: string
-  breakfastAmount: MealAmount
   temperature: string
+  temperatureMeasuredAt: string
   pickupPerson: PickupPerson
   pickupPersonName: string
   pickupTime: string
@@ -45,6 +37,7 @@ export function validateParentNotebook(values: ParentNotebookValues): string | n
   if (!values.wakeTime) return '今朝の起床時間を入力してください。'
   if (!values.breakfast.trim()) return '今朝の朝食内容を入力してください。'
   if (!values.temperature) return '今朝の体温を入力してください。'
+  if (!values.temperatureMeasuredAt) return '体温を測った時間を入力してください。'
   if (values.eveningStool === 'none' && values.eveningStoolCount !== 0)
     return '昨晩の排便回数を確認してください。'
   if (values.morningStool === 'none' && values.morningStoolCount !== 0)
