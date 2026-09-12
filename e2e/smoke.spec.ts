@@ -3,12 +3,22 @@ import { expect, test } from '@playwright/test'
 const parentPath = '/nurseries/nijiiro/parent'
 const teacherPath = '/nurseries/nijiiro/teacher'
 
-test('the shared demo notice stays visible for parents and teachers', async ({ page }) => {
+test('the shared demo notice stays visible for parents and teachers', async ({ page }, testInfo) => {
   const demoNotice = page.getByRole('complementary', { name: 'デモ環境のお知らせ' })
 
   await page.goto('/')
   await expect(demoNotice).toContainText('共用デモ環境')
   await expect(demoNotice).toContainText('実在する個人情報を入力しないでください')
+  await expect(page.getByText('このアプリを使いたい方へ')).toBeVisible()
+  await expect(page.getByRole('link', { name: /GitHub/ })).toHaveAttribute(
+    'href',
+    'https://github.com/dhythm/nursery-communication-notebook',
+  )
+  await expect(page.getByRole('link', { name: /X（@dhythm_dev）/ })).toHaveAttribute(
+    'href',
+    'https://x.com/dhythm_dev',
+  )
+  await page.screenshot({ path: testInfo.outputPath('demo-login.png'), fullPage: true })
 
   await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
   await expect(page).toHaveURL(parentPath)
@@ -40,7 +50,7 @@ test('shows a friendly loading state while opening the notebook', async ({ page 
   await expect(page.getByRole('heading', { name: 'こんにちは、田中さん' })).toBeVisible()
 })
 
-test('a parent can edit and submit a notebook entry', async ({ page }) => {
+test('a parent can register and submit a notebook entry', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
 
@@ -48,7 +58,7 @@ test('a parent can edit and submit a notebook entry', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'こんにちは、田中さん' })).toBeVisible()
   await page.getByRole('button', { name: '子どもの様子を登録する' }).click()
 
-  const dialog = page.getByRole('dialog', { name: 'ひなた の様子を編集' })
+  const dialog = page.getByRole('dialog', { name: 'ひなた の様子を登録' })
   const note = `今日は自分で靴を履けました。${Date.now()}`
   await dialog.getByLabel('夕食内容').fill('ご飯、焼き魚、みそ汁')
   await dialog.getByLabel('就寝時間').fill('21:00')
