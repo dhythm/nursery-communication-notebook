@@ -1,18 +1,54 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, Clock3, Send } from 'lucide-react'
+import { CalendarDays, Clock3, Save, Send, Trash2 } from 'lucide-react'
 import { formatDate, formatTime, todayInTimeZone } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import type { MessageKind, Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+type MessageTemplate = {
+  id: string
+  name: string
+  text: string
+  custom?: boolean
+}
+
+const defaultTeacherTemplates: MessageTemplate[] = [
+  {
+    id: 'daily-update',
+    name: '本日の様子',
+    text: '本日も元気に過ごしています。園での様子について、気になることがありましたらお知らせください。',
+  },
+  {
+    id: 'health-check',
+    name: '体調確認',
+    text: '本日、少し体調が気になる様子がありました。ご家庭でも様子を見ていただき、変化がありましたらお知らせください。',
+  },
+  {
+    id: 'belongings',
+    name: '持ち物のお願い',
+    text: '園で使用する持ち物についてご確認をお願いします。次回登園時にお持ちいただけますと助かります。',
+  },
+]
+
 export function ChatThread({ childId, role }: { childId: string; role: Role }) {
   const { currentUser, messages, addMessage } = useStore()
-  const [text, setText] = useState('')
+  const draftKey =
+    role === 'teacher' && currentUser
+      ? `nursery:teacher-message-draft:${currentUser.id}:${childId}`
+      : null
+  const templatesKey =
+    role === 'teacher' && currentUser ? `nursery:teacher-message-templates:${currentUser.id}` : null
+  const [text, setText] = useState(() => readStoredText(draftKey))
   const [kind, setKind] = useState<MessageKind>('general')
   const [scheduledDate, setScheduledDate] = useState(todayInTimeZone())
   const [scheduledTime, setScheduledTime] = useState('')
+  const [customTemplates, setCustomTemplates] = useState<MessageTemplate[]>(() =>
+    readStoredTemplates(templatesKey),
+  )
+  const [templateName, setTemplateName] = useState('')
+  const [showTemplateSave, setShowTemplateSave] = useState(false)
   const composingRef = useRef(false)
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -21,10 +57,17 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
       messages.filter((m) => m.childId === childId).sort((a, b) => a.time.localeCompare(b.time)),
     [messages, childId],
   )
+  const teacherTemplates = [...defaultTeacherTemplates, ...customTemplates]
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [thread.length])
+
+  useEffect(() => {
+    if (!draftKey || typeof window === 'undefined') return
+    if (text) window.localStorage.setItem(draftKey, text)
+    else window.localStorage.removeItem(draftKey)
+  }, [draftKey, text])
 
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +86,7 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
         scheduledDate: kind === 'general' ? undefined : scheduledDate,
         scheduledTime: kind === 'late' || kind === 'pickup' ? scheduledTime : undefined,
       })
+      if (draftKey && typeof window !== 'undefined') window.localStorage.removeItem(draftKey)
       setText('')
       setKind('general')
       setScheduledTime('')
@@ -51,6 +95,31 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  function saveTemplate() {
+    if (!templatesKey || typeof window === 'undefined') return
+    const name = templateName.trim()
+    const value = text.trim()
+    if (!name || !value) return
+    const template: MessageTemplate = {
+      id: `custom-${Date.now()}`,
+      name,
+      text: value,
+      custom: true,
+    }
+    const next = [...customTemplates, template]
+    setCustomTemplates(next)
+    window.localStorage.setItem(templatesKey, JSON.stringify(next))
+    setTemplateName('')
+    setShowTemplateSave(false)
+  }
+
+  function deleteTemplate(id: string) {
+    if (!templatesKey || typeof window === 'undefined') return
+    const next = customTemplates.filter((template) => template.id !== id)
+    setCustomTemplates(next)
+    window.localStorage.setItem(templatesKey, JSON.stringify(next))
   }
 
   return (
@@ -142,6 +211,67 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
             ))}
           </div>
         )}
+        {role === 'teacher' && (
+          <div className="mb-2 space-y-2">
+            <div
+              className="flex items-center gap-1.5 overflow-x-auto pb-0.5"
+              aria-label="メッセージテンプレート"
+            >
+              {teacherTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  className="flex shrink-0 items-center rounded-full border bg-background"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setText(template.text)}
+                    className="px-3 py-1.5 text-xs font-bold"
+                  >
+                    {template.name}
+                  </button>
+                  {template.custom && (
+                    <button
+                      type="button"
+                      aria-label={`${template.name}を削除`}
+                      onClick={() => deleteTemplate(template.id)}
+                      className="mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setShowTemplateSave((value) => !value)}
+                disabled={!text.trim()}
+                className="flex shrink-0 items-center gap-1 rounded-full border bg-background px-3 py-1.5 text-xs font-bold disabled:opacity-40"
+              >
+                <Save className="size-3" />
+                テンプレート保存
+              </button>
+            </div>
+            {showTemplateSave && (
+              <div className="flex gap-2">
+                <input
+                  value={templateName}
+                  onChange={(event) => setTemplateName(event.target.value)}
+                  placeholder="テンプレート名"
+                  aria-label="テンプレート名"
+                  className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+                />
+                <button
+                  type="button"
+                  onClick={saveTemplate}
+                  disabled={!templateName.trim() || !text.trim()}
+                  className="rounded-xl bg-secondary px-3 text-xs font-bold disabled:opacity-40"
+                >
+                  保存
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {kind !== 'general' && (
           <div className="mb-2 grid grid-cols-2 gap-2">
             <label className="text-xs font-semibold">
@@ -167,6 +297,9 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
               </label>
             )}
           </div>
+        )}
+        {role === 'teacher' && text.trim() && (
+          <p className="mb-1 text-right text-[0.65rem] text-muted-foreground">下書き保存済み</p>
         )}
         <div className="flex items-end gap-2">
           <textarea
@@ -214,6 +347,32 @@ const messageKindLabels: Record<MessageKind, string> = {
 const messageKinds = (Object.entries(messageKindLabels) as [MessageKind, string][]).map(
   ([value, label]) => ({ value, label }),
 )
+
+function readStoredText(key: string | null) {
+  if (!key || typeof window === 'undefined') return ''
+  return window.localStorage.getItem(key) ?? ''
+}
+
+function readStoredTemplates(key: string | null): MessageTemplate[] {
+  if (!key || typeof window === 'undefined') return []
+  try {
+    const saved: unknown = JSON.parse(window.localStorage.getItem(key) ?? '[]')
+    if (!Array.isArray(saved)) return []
+    return saved.filter(
+      (template): template is MessageTemplate =>
+        typeof template === 'object' &&
+        template !== null &&
+        'id' in template &&
+        typeof template.id === 'string' &&
+        'name' in template &&
+        typeof template.name === 'string' &&
+        'text' in template &&
+        typeof template.text === 'string',
+    )
+  } catch {
+    return []
+  }
+}
 
 function defaultMessage(kind: MessageKind, date: string, time: string) {
   if (kind === 'absence') return `${date}は欠席します。`
