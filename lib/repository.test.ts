@@ -597,4 +597,35 @@ describe('notebook repository', () => {
     expect(management.children.some((item) => item.id === child.id)).toBe(false)
     expect(management.members.some((member) => member.id === staff.id)).toBe(false)
   })
+
+  it('allows every teacher to view children but only facility managers to change operations', async () => {
+    await mutateNotebook(database, teacher, {
+      commandId: 'create-non-manager-teacher',
+      type: 'createMember',
+      payload: {
+        name: '閲覧 職員',
+        email: 'viewer-teacher@example.com',
+        role: 'teacher',
+      },
+    })
+    const member = (await readNotebook(database, teacher)).members.find(
+      (candidate) => candidate.email === 'viewer-teacher@example.com',
+    )!
+    const viewer = {
+      id: member.id,
+      role: 'teacher' as const,
+      name: member.name,
+      email: member.email,
+      facilityId: teacher.facilityId,
+      facilitySlug: teacher.facilitySlug,
+    }
+    expect((await readNotebook(database, viewer)).children).not.toHaveLength(0)
+    await expect(
+      mutateNotebook(database, viewer, {
+        commandId: 'non-manager-create-class',
+        type: 'createClass',
+        payload: { name: '作成不可の組', schoolYear: 2026 },
+      }),
+    ).rejects.toThrow('Forbidden')
+  })
 })

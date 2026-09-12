@@ -89,6 +89,7 @@ export const users: User[] = [
     facilitySlug: 'nijiiro',
     email: 'yamada@nijiiro.ed.jp',
     jobTitle: 'そら組 担任',
+    canManageFacility: true,
   },
 ]
 

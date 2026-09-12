@@ -24,14 +24,15 @@ export async function seedNotebook(database: Database) {
       )
       await transaction.query(
         `INSERT INTO facility_membership
-         (facility_id, user_id, role, job_title, access_scope)
-         VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
+         (facility_id, user_id, role, job_title, access_scope, can_manage_facility)
+         VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
         [
           user.facilityId,
           user.id,
           user.role,
           user.jobTitle ?? null,
           user.role === 'teacher' ? 'facility' : 'linked_children',
+          user.canManageFacility ?? false,
         ],
       )
     }
@@ -1553,6 +1554,15 @@ export async function mutateNotebook(
     command.type === 'endMembership'
   ) {
     if (user.role !== 'teacher' || !snapshot.facilities.length) throw new Error('Forbidden')
+    const manager = await database.query<{ allowed: boolean }>(
+      `SELECT EXISTS(
+         SELECT 1 FROM facility_membership
+         WHERE facility_id = $1 AND user_id = $2 AND role = 'teacher'
+           AND ended_on IS NULL AND can_manage_facility = true
+       ) AS allowed`,
+      [user.facilityId, user.id],
+    )
+    if (manager.rows[0]?.allowed !== true) throw new Error('Forbidden')
     if (command.type === 'endMembership' && command.payload.userId === user.id)
       throw new Error('Forbidden')
     await database.transaction(async (transaction) => {

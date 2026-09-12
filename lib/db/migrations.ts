@@ -502,6 +502,21 @@ const migrations = [
     version: 13,
     sql: `DROP TABLE notification_outbox;`,
   },
+  {
+    version: 14,
+    sql: `
+      ALTER TABLE facility_membership ADD COLUMN can_manage_facility boolean NOT NULL DEFAULT false;
+      UPDATE facility_membership membership
+      SET can_manage_facility = true
+      WHERE membership.role = 'teacher' AND membership.ended_on IS NULL
+        AND membership.user_id = (
+          SELECT candidate.user_id FROM facility_membership candidate
+          WHERE candidate.facility_id = membership.facility_id
+            AND candidate.role = 'teacher' AND candidate.ended_on IS NULL
+          ORDER BY candidate.created_at, candidate.user_id LIMIT 1
+        );
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

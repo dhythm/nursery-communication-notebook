@@ -26,8 +26,8 @@ const navItems = [
   { href: '/teacher/notices', label: 'お知らせ', icon: Megaphone },
   { href: '/teacher/files', label: '資料共有', icon: FolderOpen },
   { href: '/teacher/calendar', label: 'カレンダー', icon: CalendarDays },
-  { href: '/teacher/audit', label: '操作履歴', icon: ShieldCheck },
-  { href: '/teacher/management', label: '運用管理', icon: Settings2 },
+  { href: '/teacher/audit', label: '操作履歴', icon: ShieldCheck, managerOnly: true },
+  { href: '/teacher/management', label: '運用管理', icon: Settings2, managerOnly: true },
 ]
 
 export function TeacherShell({ children }: { children: ReactNode }) {
@@ -41,6 +41,9 @@ export function TeacherShell({ children }: { children: ReactNode }) {
   }, [currentUser, router])
 
   if (!currentUser || currentUser.role !== 'teacher') return null
+  const visibleNavItems = navItems.filter(
+    (item) => !item.managerOnly || currentUser.canManageFacility,
+  )
 
   async function handleLogout() {
     await logout()
@@ -54,7 +57,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         </div>
         <nav className="flex-1 px-3">
           <ul className="space-y-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const href = facilityPath(item.href)
               const active =
                 item.href === '/teacher' ? pathname === href : pathname.startsWith(href)
@@ -114,7 +117,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
 
         <nav className="shrink-0 border-t border-border bg-card md:hidden">
           <ul className="flex items-stretch justify-around px-1 py-1.5">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const href = facilityPath(item.href)
               const active =
                 item.href === '/teacher' ? pathname === href : pathname.startsWith(href)

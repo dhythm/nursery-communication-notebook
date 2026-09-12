@@ -9,13 +9,15 @@ interface UserRow {
   facilityId: string
   facilitySlug: string
   jobTitle: string | null
+  canManageFacility: boolean
 }
 
 async function findUser(database: Database, externalSubject: string): Promise<User | null> {
   const result = await database.query<UserRow>(
     `SELECT account.id, account.name, account.email, membership.role,
        membership.facility_id AS "facilityId", facility.slug AS "facilitySlug",
-       membership.job_title AS "jobTitle"
+       membership.job_title AS "jobTitle",
+       membership.can_manage_facility AS "canManageFacility"
      FROM app_user account
      JOIN facility_membership membership ON membership.user_id = account.id
      JOIN facility ON facility.id = membership.facility_id
@@ -34,6 +36,7 @@ async function findUser(database: Database, externalSubject: string): Promise<Us
     facilityId: row.facilityId,
     facilitySlug: row.facilitySlug,
     jobTitle: row.jobTitle ?? undefined,
+    canManageFacility: row.canManageFacility,
   }
 }
 

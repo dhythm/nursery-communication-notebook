@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { requireFacilityRole } from '@/lib/auth/server'
 import ParentHome from '@/app/parent/page'
 import ParentFiles from '@/app/parent/files/page'
 import ParentMessages from '@/app/parent/messages/page'
@@ -43,9 +44,13 @@ const teacherPages: Record<string, React.ComponentType> = {
 export default async function FacilityPage({
   params,
 }: {
-  params: Promise<{ role: string; section?: string[] }>
+  params: Promise<{ facilitySlug: string; role: string; section?: string[] }>
 }) {
-  const { role, section = [] } = await params
+  const { facilitySlug, role, section = [] } = await params
+  if (role === 'teacher' && (section[0] === 'audit' || section[0] === 'management')) {
+    const user = await requireFacilityRole(facilitySlug, 'teacher')
+    if (!user.canManageFacility) notFound()
+  }
   const pages = role === 'parent' ? parentPages : role === 'teacher' ? teacherPages : undefined
   const Page = pages?.[section.join('/')]
   if (!Page) notFound()

@@ -23,6 +23,7 @@ export interface User {
   email: string
   childIds?: string[]
   jobTitle?: string
+  canManageFacility?: boolean
 }
 
 export interface Child {
