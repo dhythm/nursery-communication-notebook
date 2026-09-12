@@ -12,6 +12,7 @@ import {
   Megaphone,
   Users,
   ShieldCheck,
+  Settings2,
 } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
 import { useStore } from '@/lib/store'
@@ -25,6 +26,7 @@ const navItems = [
   { href: '/teacher/files', label: '資料共有', icon: FolderOpen },
   { href: '/teacher/calendar', label: 'カレンダー', icon: CalendarDays },
   { href: '/teacher/audit', label: '操作履歴', icon: ShieldCheck },
+  { href: '/teacher/management', label: '運用管理', icon: Settings2 },
 ]
 
 export function TeacherShell({ children }: { children: ReactNode }) {

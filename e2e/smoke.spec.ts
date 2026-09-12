@@ -155,6 +155,41 @@ test('a teacher uploads a real PDF that an authorized parent can download', asyn
   expect(await response.body()).toEqual(Buffer.from('%PDF-1.7\nreal file'))
 })
 
+test('a teacher registers a class, guardian, and child', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '保育士', exact: true }).click()
+  await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
+  await expect(page).toHaveURL('/teacher')
+  await page.goto('/teacher/management')
+  const suffix = Date.now()
+  const className = `テスト組${suffix}`
+  const classCard = page.getByRole('heading', { name: 'クラスを追加' }).locator('..')
+  await classCard.getByLabel('クラス名').fill(className)
+  const classSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/notebook') && response.request().method() === 'POST',
+  )
+  await classCard.getByRole('button', { name: '追加' }).click()
+  expect((await classSaved).status()).toBe(200)
+  const memberCard = page.getByRole('heading', { name: '利用者を追加' }).locator('..')
+  await memberCard.getByLabel('氏名').fill(`テスト保護者${suffix}`)
+  await memberCard.getByLabel('メールアドレス').fill(`parent-${suffix}@example.com`)
+  const memberSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/notebook') && response.request().method() === 'POST',
+  )
+  await memberCard.getByRole('button', { name: '追加' }).click()
+  expect((await memberSaved).status()).toBe(200)
+  const childCard = page.getByRole('heading', { name: '園児を入園登録' }).locator('..')
+  await childCard.getByLabel('氏名').fill(`テスト園児${suffix}`)
+  await childCard.getByLabel('ふりがな').fill('てすと えんじ')
+  await childCard.getByLabel('生年月日').fill('2024-04-01')
+  await childCard.getByLabel('クラス').selectOption({ label: className })
+  await childCard.getByLabel('保護者').selectOption({ label: `テスト保護者${suffix}` })
+  await childCard.getByRole('button', { name: '入園登録' }).click()
+  await expect(page.getByText(`テスト園児${suffix}`, { exact: true }).first()).toBeVisible()
+})
+
 test('the API rejects teacher-only updates and cross-origin requests', async ({ request }) => {
   const denied = await request.post('/api/notebook', {
     data: {

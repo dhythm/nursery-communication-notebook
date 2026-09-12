@@ -391,4 +391,89 @@ describe('notebook repository', () => {
     expect(result.notices[0].title).toContain('運動会')
     expect(result.notebookEntries).toHaveLength(0)
   })
+
+  it('runs admission, class assignment, guardian linking, staff assignment, and withdrawal', async () => {
+    await mutateNotebook(database, teacher, {
+      commandId: 'create-class-management',
+      type: 'createClass',
+      payload: { name: 'ほし組（1歳児）', schoolYear: 2026 },
+    })
+    await mutateNotebook(database, teacher, {
+      commandId: 'create-guardian-management',
+      type: 'createMember',
+      payload: { name: '新規 保護者', email: 'new-parent@example.com', role: 'parent' },
+    })
+    await mutateNotebook(database, teacher, {
+      commandId: 'create-staff-management',
+      type: 'createMember',
+      payload: {
+        name: '新規 職員',
+        email: 'new-teacher@example.com',
+        role: 'teacher',
+        jobTitle: '担任',
+      },
+    })
+    let management = await readNotebook(database, teacher)
+    const nurseryClass = management.nurseryClasses.find((item) => item.name === 'ほし組（1歳児）')!
+    const guardian = management.members.find((member) => member.email === 'new-parent@example.com')!
+    const staff = management.members.find((member) => member.email === 'new-teacher@example.com')!
+    await mutateNotebook(database, teacher, {
+      commandId: 'admit-child-management',
+      type: 'createChild',
+      payload: {
+        name: '新規 園児',
+        kana: 'しんき えんじ',
+        birthday: '2025-04-01',
+        classId: nurseryClass.id,
+        avatarColor: 'blue',
+        allergies: [],
+        notes: '',
+        guardianUserIds: [guardian.id],
+      },
+    })
+    management = await readNotebook(database, teacher)
+    const child = management.children.find((item) => item.name === '新規 園児')!
+    expect(
+      (
+        await readNotebook(database, {
+          id: guardian.id,
+          role: 'parent',
+          name: guardian.name,
+          email: guardian.email,
+          facilityId: teacher.facilityId,
+        })
+      ).children.map((item) => item.id),
+    ).toEqual([child.id])
+    await mutateNotebook(database, teacher, {
+      commandId: 'assign-staff-management',
+      type: 'assignStaffClass',
+      payload: { staffUserId: staff.id, classId: nurseryClass.id },
+    })
+    await mutateNotebook(database, teacher, {
+      commandId: 'move-child-management',
+      type: 'moveChildClass',
+      payload: { id: child.id, expectedVersion: child.version!, classId: 'class-f1-tsuki' },
+    })
+    management = await readNotebook(database, teacher)
+    expect(management.children.find((item) => item.id === child.id)).toMatchObject({
+      classId: 'class-f1-tsuki',
+      version: 2,
+    })
+    expect(management.members.find((member) => member.id === staff.id)?.assignedClassIds).toContain(
+      nurseryClass.id,
+    )
+    await mutateNotebook(database, teacher, {
+      commandId: 'end-staff-management',
+      type: 'endMembership',
+      payload: { userId: staff.id, role: 'teacher' },
+    })
+    await mutateNotebook(database, teacher, {
+      commandId: 'withdraw-child-management',
+      type: 'withdrawChild',
+      payload: { id: child.id, expectedVersion: 2 },
+    })
+    management = await readNotebook(database, teacher)
+    expect(management.children.some((item) => item.id === child.id)).toBe(false)
+    expect(management.members.some((member) => member.id === staff.id)).toBe(false)
+  })
 })

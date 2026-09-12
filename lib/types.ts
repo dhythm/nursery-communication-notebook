@@ -146,6 +146,16 @@ interface AuditEvent {
   occurredAt: string
 }
 
+interface MemberSummary {
+  id: string
+  name: string
+  email: string
+  role: Role
+  jobTitle?: string
+  assignedClassIds: string[]
+  linkedChildIds: string[]
+}
+
 export interface NotebookSnapshot {
   facilities: Facility[]
   children: Child[]
@@ -157,6 +167,8 @@ export interface NotebookSnapshot {
   notificationPreferences: NotificationPreference[]
   notifications: AppNotification[]
   auditEvents: AuditEvent[]
+  nurseryClasses: NurseryClass[]
+  members: MemberSummary[]
 }
 
 export type NotebookAction =
@@ -207,6 +219,29 @@ export type NotebookAction =
       payload: { category: NotificationCategory; enabled: boolean }
     }
   | { type: 'markNotificationRead'; payload: { id: string } }
+  | { type: 'createClass'; payload: { name: string; schoolYear: number } }
+  | {
+      type: 'createMember'
+      payload: { name: string; email: string; role: Role; jobTitle?: string }
+    }
+  | {
+      type: 'createChild'
+      payload: {
+        name: string
+        kana: string
+        birthday: string
+        classId: string
+        avatarColor: string
+        allergies: string[]
+        notes: string
+        guardianUserIds: string[]
+      }
+    }
+  | { type: 'moveChildClass'; payload: { id: string; expectedVersion: number; classId: string } }
+  | { type: 'withdrawChild'; payload: { id: string; expectedVersion: number } }
+  | { type: 'assignStaffClass'; payload: { staffUserId: string; classId: string } }
+  | { type: 'linkGuardianChild'; payload: { guardianUserId: string; childId: string } }
+  | { type: 'endMembership'; payload: { userId: string; role: Role } }
   | {
       type: 'updateChild'
       payload: { id: string; expectedVersion: number; patch: Partial<Child> }

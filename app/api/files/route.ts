@@ -47,21 +47,25 @@ export async function POST(request: Request) {
         ? 403
         : message === 'FileTooLarge'
           ? 413
-          : ['UnsupportedFile', 'EmptyFile', 'InvalidFileName', 'InvalidCommand'].includes(message)
-            ? 415
-            : 503
+          : ['InvalidFileName', 'InvalidCommand'].includes(message)
+            ? 400
+            : ['UnsupportedFile', 'EmptyFile'].includes(message)
+              ? 415
+              : 503
     if (status === 503)
       logError('file_upload_failed', error, { userId: user.id, facilityId: user.facilityId })
     return Response.json(
       {
         error:
-          status === 415
-            ? 'PDF、JPEG、PNG、WebP、DOCXのみ共有できます。'
-            : status === 413
-              ? 'ファイルは10MB以下にしてください。'
-              : status === 403
-                ? 'Forbidden'
-                : 'アップロードできませんでした。',
+          status === 400
+            ? 'ファイル名を確認して、もう一度選択してください。'
+            : status === 415
+              ? 'PDF、JPEG、PNG、WebP、DOCXのみ共有できます。'
+              : status === 413
+                ? 'ファイルは10MB以下にしてください。'
+                : status === 403
+                  ? 'Forbidden'
+                  : 'アップロードできませんでした。',
       },
       { status, headers },
     )

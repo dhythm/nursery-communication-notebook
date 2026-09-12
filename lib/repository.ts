@@ -278,6 +278,8 @@ export async function readNotebook(
     notificationPreferences: [],
     notifications: [],
     auditEvents: [],
+    nurseryClasses: [],
+    members: [],
   }
   for (const kind of kinds) {
     if (kind === 'facilities' || kind === 'children') continue
@@ -438,6 +440,28 @@ export async function readNotebook(
       )
     ).rows
     if (isFacilityWide) {
+      snapshot.nurseryClasses = (
+        await database.query<NotebookSnapshot['nurseryClasses'][number]>(
+          `SELECT id, facility_id AS "facilityId", name, school_year AS "schoolYear"
+           FROM nursery_class WHERE facility_id = $1 ORDER BY school_year DESC NULLS LAST, name`,
+          [user.facilityId],
+        )
+      ).rows
+      snapshot.members = (
+        await database.query<NotebookSnapshot['members'][number]>(
+          `SELECT member.id, member.name, member.email, membership.role, membership.job_title AS "jobTitle",
+             COALESCE((SELECT array_agg(assignment.class_id ORDER BY assignment.class_id)
+               FROM staff_class_assignment assignment WHERE assignment.staff_user_id = member.id
+                 AND assignment.facility_id = membership.facility_id AND assignment.ended_on IS NULL), ARRAY[]::text[]) AS "assignedClassIds",
+             COALESCE((SELECT array_agg(link.child_id ORDER BY link.child_id)
+               FROM guardian_child link WHERE link.guardian_user_id = member.id
+                 AND link.facility_id = membership.facility_id AND link.ended_on IS NULL), ARRAY[]::text[]) AS "linkedChildIds"
+           FROM facility_membership membership JOIN app_user member ON member.id = membership.user_id
+           WHERE membership.facility_id = $1 AND membership.ended_on IS NULL
+           ORDER BY membership.role DESC, member.name`,
+          [user.facilityId],
+        )
+      ).rows
       snapshot.auditEvents = (
         await database.query<NotebookSnapshot['auditEvents'][number]>(
           `SELECT audit.id, COALESCE(actor.name, 'システム') AS "actorName",
@@ -621,6 +645,66 @@ const commandSchema = z.discriminatedUnion('type', [
     commandId,
     type: z.literal('markNotificationRead'),
     payload: z.object({ id }).strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('createClass'),
+    payload: z
+      .object({ name: text.min(1).max(100), schoolYear: z.number().int().min(2000).max(2200) })
+      .strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('createMember'),
+    payload: z
+      .object({
+        name: text.min(1).max(100),
+        email: z.email().max(320),
+        role: z.enum(['parent', 'teacher']),
+        jobTitle: text.max(100).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('createChild'),
+    payload: z
+      .object({
+        name: text.min(1).max(100),
+        kana: text.max(100),
+        birthday: date,
+        classId: id,
+        avatarColor: text.min(1).max(100),
+        allergies: z.array(text.max(100)).max(50),
+        notes: text,
+        guardianUserIds: z.array(id).max(20),
+      })
+      .strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('moveChildClass'),
+    payload: z.object({ id, expectedVersion: z.number().int().positive(), classId: id }).strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('withdrawChild'),
+    payload: z.object({ id, expectedVersion: z.number().int().positive() }).strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('assignStaffClass'),
+    payload: z.object({ staffUserId: id, classId: id }).strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('linkGuardianChild'),
+    payload: z.object({ guardianUserId: id, childId: id }).strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('endMembership'),
+    payload: z.object({ userId: id, role: z.enum(['parent', 'teacher']) }).strict(),
   }),
   z.object({
     commandId,
@@ -1282,6 +1366,322 @@ export async function mutateNotebook(
         'notification',
         command.payload.id,
         null,
+        null,
+        now,
+      )
+    })
+    return
+  }
+  if (
+    command.type === 'createClass' ||
+    command.type === 'createMember' ||
+    command.type === 'createChild' ||
+    command.type === 'moveChildClass' ||
+    command.type === 'withdrawChild' ||
+    command.type === 'assignStaffClass' ||
+    command.type === 'linkGuardianChild' ||
+    command.type === 'endMembership'
+  ) {
+    if (user.role !== 'teacher' || !snapshot.facilities.length) throw new Error('Forbidden')
+    if (command.type === 'endMembership' && command.payload.userId === user.id)
+      throw new Error('Forbidden')
+    await database.transaction(async (transaction) => {
+      if (!(await acceptCommand(transaction, user.id, command.commandId))) return
+      if (command.type === 'createClass') {
+        const entityId = randomUUID()
+        const inserted = await transaction.query(
+          `INSERT INTO nursery_class (id, facility_id, name, school_year)
+           VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING id`,
+          [entityId, user.facilityId, command.payload.name, command.payload.schoolYear],
+        )
+        if (!inserted.rows.length) throw new Error('Conflict')
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'created',
+          'nursery_class',
+          entityId,
+          null,
+          command.payload,
+          now,
+        )
+        return
+      }
+      if (command.type === 'createMember') {
+        const proposedId = randomUUID()
+        const member = await transaction.query<{ id: string }>(
+          `INSERT INTO app_user (id, name, email) VALUES ($1, $2, lower($3))
+           ON CONFLICT (email) DO UPDATE SET updated_at = app_user.updated_at RETURNING id`,
+          [proposedId, command.payload.name, command.payload.email],
+        )
+        const entityId = member.rows[0].id
+        const membership = await transaction.query(
+          `INSERT INTO facility_membership
+           (facility_id, user_id, role, job_title, access_scope, started_on)
+           VALUES ($1, $2, $3, $4, $5, $6::date)
+           ON CONFLICT (facility_id, user_id, role) DO UPDATE
+             SET job_title = EXCLUDED.job_title, access_scope = EXCLUDED.access_scope,
+                 started_on = EXCLUDED.started_on, ended_on = NULL, updated_at = now()
+             WHERE facility_membership.ended_on IS NOT NULL
+           RETURNING user_id`,
+          [
+            user.facilityId,
+            entityId,
+            command.payload.role,
+            command.payload.jobTitle ?? null,
+            command.payload.role === 'teacher' ? 'facility' : 'linked_children',
+            todayInTimeZone(now),
+          ],
+        )
+        if (!membership.rows.length) throw new Error('Conflict')
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'created',
+          'facility_membership',
+          entityId,
+          null,
+          command.payload,
+          now,
+        )
+        return
+      }
+      if (command.type === 'createChild') {
+        if (command.payload.birthday > todayInTimeZone(now)) throw new Error('InvalidDate')
+        if (!snapshot.nurseryClasses.some((item) => item.id === command.payload.classId))
+          throw new Error('Forbidden')
+        if (
+          command.payload.guardianUserIds.some(
+            (guardianId) =>
+              !snapshot.members.some(
+                (member) => member.id === guardianId && member.role === 'parent',
+              ),
+          )
+        )
+          throw new Error('Forbidden')
+        const entityId = randomUUID()
+        await transaction.query(
+          `INSERT INTO child
+           (id, facility_id, name, kana, birthday, avatar_color, allergies, notes, admitted_on)
+           VALUES ($1, $2, $3, $4, $5::date, $6, $7::text[], $8, $9::date)`,
+          [
+            entityId,
+            user.facilityId,
+            command.payload.name,
+            command.payload.kana,
+            command.payload.birthday,
+            command.payload.avatarColor,
+            command.payload.allergies,
+            command.payload.notes,
+            todayInTimeZone(now),
+          ],
+        )
+        await transaction.query(
+          `INSERT INTO child_enrollment (id, facility_id, child_id, class_id, started_on)
+           VALUES ($1, $2, $3, $4, $5::date)`,
+          [randomUUID(), user.facilityId, entityId, command.payload.classId, todayInTimeZone(now)],
+        )
+        for (const guardianId of command.payload.guardianUserIds) {
+          await transaction.query(
+            `INSERT INTO guardian_child
+             (id, facility_id, guardian_user_id, child_id, started_on)
+             VALUES ($1, $2, $3, $4, $5::date)`,
+            [randomUUID(), user.facilityId, guardianId, entityId, todayInTimeZone(now)],
+          )
+        }
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'created',
+          'child',
+          entityId,
+          null,
+          command.payload,
+          now,
+        )
+        return
+      }
+      if (command.type === 'moveChildClass') {
+        const existing = snapshot.children.find((child) => child.id === command.payload.id)
+        if (
+          !existing ||
+          !snapshot.nurseryClasses.some((item) => item.id === command.payload.classId)
+        )
+          throw new Error('Forbidden')
+        const updated = await transaction.query(
+          `UPDATE child SET version = version + 1, updated_at = $4
+           WHERE id = $1 AND facility_id = $2 AND version = $3 RETURNING version`,
+          [command.payload.id, user.facilityId, command.payload.expectedVersion, now.toISOString()],
+        )
+        if (!updated.rows.length) throw new Error('Conflict')
+        await transaction.query(
+          `UPDATE child_enrollment SET ended_on = $2::date, updated_at = $3
+           WHERE child_id = $1 AND ended_on IS NULL`,
+          [command.payload.id, todayInTimeZone(now), now.toISOString()],
+        )
+        await transaction.query(
+          `INSERT INTO child_enrollment (id, facility_id, child_id, class_id, started_on)
+           VALUES ($1, $2, $3, $4, $5::date)`,
+          [
+            randomUUID(),
+            user.facilityId,
+            command.payload.id,
+            command.payload.classId,
+            todayInTimeZone(now),
+          ],
+        )
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'class_changed',
+          'child',
+          command.payload.id,
+          existing,
+          command.payload,
+          now,
+        )
+        return
+      }
+      if (command.type === 'withdrawChild') {
+        const existing = snapshot.children.find((child) => child.id === command.payload.id)
+        if (!existing) throw new Error('Forbidden')
+        const updated = await transaction.query(
+          `UPDATE child SET withdrawn_on = $4::date, version = version + 1, updated_at = $5
+           WHERE id = $1 AND facility_id = $2 AND version = $3 AND withdrawn_on IS NULL RETURNING id`,
+          [
+            command.payload.id,
+            user.facilityId,
+            command.payload.expectedVersion,
+            todayInTimeZone(now),
+            now.toISOString(),
+          ],
+        )
+        if (!updated.rows.length) throw new Error('Conflict')
+        await transaction.query(
+          `UPDATE child_enrollment SET ended_on = $2::date, updated_at = $3 WHERE child_id = $1 AND ended_on IS NULL`,
+          [command.payload.id, todayInTimeZone(now), now.toISOString()],
+        )
+        await transaction.query(
+          `UPDATE guardian_child SET ended_on = $2::date, updated_at = $3 WHERE child_id = $1 AND ended_on IS NULL`,
+          [command.payload.id, todayInTimeZone(now), now.toISOString()],
+        )
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'withdrawn',
+          'child',
+          command.payload.id,
+          existing,
+          null,
+          now,
+        )
+        return
+      }
+      if (command.type === 'assignStaffClass') {
+        if (
+          !snapshot.members.some(
+            (member) => member.id === command.payload.staffUserId && member.role === 'teacher',
+          ) ||
+          !snapshot.nurseryClasses.some((item) => item.id === command.payload.classId)
+        )
+          throw new Error('Forbidden')
+        await transaction.query(
+          `INSERT INTO staff_class_assignment
+           (id, facility_id, staff_user_id, class_id, started_on)
+           VALUES ($1, $2, $3, $4, $5::date) ON CONFLICT DO NOTHING`,
+          [
+            randomUUID(),
+            user.facilityId,
+            command.payload.staffUserId,
+            command.payload.classId,
+            todayInTimeZone(now),
+          ],
+        )
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'assigned',
+          'staff_class_assignment',
+          command.payload.staffUserId,
+          null,
+          command.payload,
+          now,
+        )
+        return
+      }
+      if (command.type === 'linkGuardianChild') {
+        if (
+          !snapshot.members.some(
+            (member) => member.id === command.payload.guardianUserId && member.role === 'parent',
+          ) ||
+          !snapshot.children.some((child) => child.id === command.payload.childId)
+        )
+          throw new Error('Forbidden')
+        await transaction.query(
+          `INSERT INTO guardian_child
+           (id, facility_id, guardian_user_id, child_id, started_on)
+           VALUES ($1, $2, $3, $4, $5::date) ON CONFLICT DO NOTHING`,
+          [
+            randomUUID(),
+            user.facilityId,
+            command.payload.guardianUserId,
+            command.payload.childId,
+            todayInTimeZone(now),
+          ],
+        )
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'linked',
+          'guardian_child',
+          command.payload.guardianUserId,
+          null,
+          command.payload,
+          now,
+        )
+        return
+      }
+      const existing = snapshot.members.find(
+        (member) => member.id === command.payload.userId && member.role === command.payload.role,
+      )
+      if (!existing) throw new Error('Forbidden')
+      const ended = await transaction.query(
+        `UPDATE facility_membership SET ended_on = $4::date, updated_at = $5
+         WHERE facility_id = $1 AND user_id = $2 AND role = $3 AND ended_on IS NULL RETURNING user_id`,
+        [
+          user.facilityId,
+          command.payload.userId,
+          command.payload.role,
+          todayInTimeZone(now),
+          now.toISOString(),
+        ],
+      )
+      if (!ended.rows.length) throw new Error('Conflict')
+      if (command.payload.role === 'teacher')
+        await transaction.query(
+          `UPDATE staff_class_assignment SET ended_on = $3::date, updated_at = $4 WHERE facility_id = $1 AND staff_user_id = $2 AND ended_on IS NULL`,
+          [user.facilityId, command.payload.userId, todayInTimeZone(now), now.toISOString()],
+        )
+      else
+        await transaction.query(
+          `UPDATE guardian_child SET ended_on = $3::date, updated_at = $4 WHERE facility_id = $1 AND guardian_user_id = $2 AND ended_on IS NULL`,
+          [user.facilityId, command.payload.userId, todayInTimeZone(now), now.toISOString()],
+        )
+      await writeAudit(
+        transaction,
+        user,
+        command.commandId,
+        'ended',
+        'facility_membership',
+        command.payload.userId,
+        existing,
         null,
         now,
       )

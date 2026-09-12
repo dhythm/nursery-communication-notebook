@@ -67,7 +67,9 @@ export async function POST(request: Request) {
     return Response.json({ ok: true }, { headers })
   } catch (error) {
     const status =
-      error instanceof ZodError || error instanceof SyntaxError
+      error instanceof ZodError ||
+      error instanceof SyntaxError ||
+      (error instanceof Error && ['InvalidDate', 'InvalidClass'].includes(error.message))
         ? 400
         : error instanceof Error && error.message === 'Forbidden'
           ? 403

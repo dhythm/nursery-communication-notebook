@@ -69,6 +69,21 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   cancelEvent: (id: string, expectedVersion: number) => Promise<void>
   updateNotificationPreference: (category: NotificationCategory, enabled: boolean) => Promise<void>
   markNotificationRead: (id: string) => Promise<void>
+  createClass: (name: string, schoolYear: number) => Promise<void>
+  createMember: (payload: {
+    name: string
+    email: string
+    role: Role
+    jobTitle?: string
+  }) => Promise<void>
+  createChild: (
+    payload: Extract<NotebookAction, { type: 'createChild' }>['payload'],
+  ) => Promise<void>
+  moveChildClass: (id: string, expectedVersion: number, classId: string) => Promise<void>
+  withdrawChild: (id: string, expectedVersion: number) => Promise<void>
+  assignStaffClass: (staffUserId: string, classId: string) => Promise<void>
+  linkGuardianChild: (guardianUserId: string, childId: string) => Promise<void>
+  endMembership: (userId: string, role: Role) => Promise<void>
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
@@ -83,6 +98,8 @@ const emptySnapshot: NotebookSnapshot = {
   notificationPreferences: [],
   notifications: [],
   auditEvents: [],
+  nurseryClasses: [],
+  members: [],
 }
 interface StoreProps {
   children: ReactNode
@@ -176,6 +193,19 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
     updateNotificationPreference: (category, enabled) =>
       mutate({ type: 'updateNotificationPreference', payload: { category, enabled } }),
     markNotificationRead: (id) => mutate({ type: 'markNotificationRead', payload: { id } }),
+    createClass: (name, schoolYear) =>
+      mutate({ type: 'createClass', payload: { name, schoolYear } }),
+    createMember: (payload) => mutate({ type: 'createMember', payload }),
+    createChild: (payload) => mutate({ type: 'createChild', payload }),
+    moveChildClass: (id, expectedVersion, classId) =>
+      mutate({ type: 'moveChildClass', payload: { id, expectedVersion, classId } }),
+    withdrawChild: (id, expectedVersion) =>
+      mutate({ type: 'withdrawChild', payload: { id, expectedVersion } }),
+    assignStaffClass: (staffUserId, classId) =>
+      mutate({ type: 'assignStaffClass', payload: { staffUserId, classId } }),
+    linkGuardianChild: (guardianUserId, childId) =>
+      mutate({ type: 'linkGuardianChild', payload: { guardianUserId, childId } }),
+    endMembership: (userId, role) => mutate({ type: 'endMembership', payload: { userId, role } }),
   }
 
   if (currentUser && query.isPending)
