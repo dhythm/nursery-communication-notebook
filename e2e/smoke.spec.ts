@@ -88,7 +88,7 @@ test('the agent server uses PGlite and caches data across page navigation', asyn
 }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
-  expect(await response.json()).toMatchObject({ ok: true, provider: 'pglite', migrationVersion: 5 })
+  expect(await response.json()).toMatchObject({ ok: true, provider: 'pglite', migrationVersion: 6 })
   let readCount = 0
   page.on('response', (response) => {
     if (

@@ -181,7 +181,6 @@ export type NotebookAction =
       payload: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>
     }
   | { type: 'addNotice'; payload: Omit<Notice, 'id' | 'date'> }
-  | { type: 'addFile'; payload: Omit<SharedFile, 'id' | 'date' | 'uploadedBy'> }
   | { type: 'addEvent'; payload: Omit<CalendarEvent, 'id'> }
   | {
       type: 'saveNotebookEntry'

@@ -66,6 +66,13 @@ describe('notebook repository', () => {
       sender: 'parent',
       senderName: parent.name,
     })
+    expect(
+      (
+        await database.query(
+          `SELECT sender_user_id, command_id FROM message WHERE body = '検証メッセージ'`,
+        )
+      ).rows,
+    ).toEqual([{ sender_user_id: parent.id, command_id: 'message-once' }])
   })
   it('rejects unauthorized child access and teacher-only mutations', async () => {
     await expect(

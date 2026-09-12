@@ -376,6 +376,41 @@ const migrations = [
       ON CONFLICT (id) DO NOTHING;
     `,
   },
+  {
+    version: 6,
+    sql: `
+      CREATE TABLE message (
+        id text PRIMARY KEY,
+        facility_id text NOT NULL,
+        child_id text NOT NULL,
+        sender_user_id text REFERENCES app_user(id) ON DELETE RESTRICT,
+        sender_role text NOT NULL CHECK (sender_role IN ('parent', 'teacher')),
+        sender_name text NOT NULL,
+        body text NOT NULL CHECK (length(body) > 0),
+        sent_at timestamptz NOT NULL,
+        command_id text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        FOREIGN KEY (facility_id, child_id) REFERENCES child(facility_id, id) ON DELETE RESTRICT,
+        UNIQUE (sender_user_id, command_id)
+      );
+      CREATE INDEX message_thread ON message(facility_id, child_id, sent_at DESC);
+
+      INSERT INTO message
+        (id, facility_id, child_id, sender_user_id, sender_role, sender_name, body, sent_at)
+      SELECT data->>'id', child.facility_id, data->>'childId',
+        COALESCE(data->>'senderId', (
+          SELECT member.id FROM app_user member
+          JOIN facility_membership membership ON membership.user_id = member.id
+          WHERE membership.facility_id = child.facility_id
+            AND membership.role = data->>'sender' AND member.name = data->>'senderName'
+          LIMIT 1
+        )),
+        data->>'sender', data->>'senderName', data->>'text', (data->>'time')::timestamptz
+      FROM app_record JOIN child ON child.id = app_record.data->>'childId'
+      WHERE kind = 'messages'
+      ON CONFLICT (id) DO NOTHING;
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

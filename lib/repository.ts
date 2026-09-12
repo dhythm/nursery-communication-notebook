@@ -5,17 +5,7 @@ import { todayInTimeZone } from './format'
 import * as seed from './mock-data'
 import type { NotebookSnapshot, User } from './types'
 
-const kinds = [
-  'facilities',
-  'children',
-  'notebookEntries',
-  'notices',
-  'messages',
-  'sharedFiles',
-  'calendarEvents',
-] as const
-
-/** Seed normalized core data and the remaining development feed records. */
+/** Seed the normalized development dataset. */
 export async function seedNotebook(database: Database) {
   await database.transaction(async (transaction) => {
     for (const facility of seed.facilities) {
@@ -167,13 +157,29 @@ export async function seedNotebook(database: Database) {
         ],
       )
     }
-    for (const kind of kinds) {
-      for (const record of seed[kind]) {
-        await transaction.query(
-          'INSERT INTO app_record (id, kind, data) VALUES ($1, $2, $3::jsonb) ON CONFLICT (id) DO NOTHING',
-          [`${kind}:${record.id}`, kind, JSON.stringify(record)],
-        )
-      }
+    for (const message of seed.messages) {
+      const child = seed.children.find((candidate) => candidate.id === message.childId)!
+      await transaction.query(
+        `INSERT INTO message
+         (id, facility_id, child_id, sender_user_id, sender_role, sender_name, body, sent_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          message.id,
+          child.facilityId,
+          message.childId,
+          message.senderId ??
+            seed.users.find(
+              (candidate) =>
+                candidate.role === message.sender && candidate.name === message.senderName,
+            )?.id ??
+            null,
+          message.sender,
+          message.senderName,
+          message.text,
+          message.time,
+        ],
+      )
     }
   })
 }
@@ -245,28 +251,6 @@ export async function readNotebook(
       )
     : { rows: [] }
   const accessibleChildIds = childResult.rows.map((child) => child.id)
-  const result = await database.query<{ kind: (typeof kinds)[number]; data: { id: string } }>(
-    `SELECT record.kind, record.data
-     FROM app_record record
-     WHERE
-       (
-         record.kind = 'messages'
-         AND ($2 OR record.data->>'childId' = ANY($3::text[]))
-         AND EXISTS (
-           SELECT 1 FROM child
-           WHERE child.id = record.data->>'childId'
-             AND child.facility_id = $1
-         )
-       )
-       OR (
-         record.kind = 'sharedFiles'
-         AND record.data->>'facilityId' = $1
-         AND $4
-       )
-     ORDER BY record.id
-     LIMIT $5 OFFSET $6`,
-    [user.facilityId, isFacilityWide, accessibleChildIds, hasMembership, limit, offset],
-  )
   const snapshot: NotebookSnapshot = {
     facilities: facilityResult.rows,
     children: childResult.rows,
@@ -281,14 +265,6 @@ export async function readNotebook(
     nurseryClasses: [],
     members: [],
   }
-  for (const kind of kinds) {
-    if (kind === 'facilities' || kind === 'children') continue
-    // Values enter the table only through the seed and validated mutations below.
-    Object.assign(snapshot, {
-      [kind]: result.rows.filter((row) => row.kind === kind).map((row) => row.data),
-    })
-  }
-  const childIds = new Set(snapshot.children.map((child) => child.id))
   snapshot.notebookEntries = hasMembership
     ? (
         await database.query<NotebookSnapshot['notebookEntries'][number]>(
@@ -318,9 +294,20 @@ export async function readNotebook(
         )
       ).rows
     : []
-  snapshot.messages = snapshot.messages
-    .filter((message) => childIds.has(message.childId))
-    .sort((a, b) => a.time.localeCompare(b.time))
+  snapshot.messages = hasMembership
+    ? (
+        await database.query<NotebookSnapshot['messages'][number]>(
+          `SELECT message.id, message.child_id AS "childId", message.sender_user_id AS "senderId",
+             message.sender_role AS sender, message.sender_name AS "senderName",
+             message.body AS text, message.sent_at::text AS time
+           FROM message
+           WHERE message.facility_id = $1 AND message.child_id = ANY($2::text[])
+             AND ($3 = '' OR message.body ILIKE '%' || $3 || '%' OR message.sender_name ILIKE '%' || $3 || '%')
+           ORDER BY message.sent_at DESC LIMIT $4 OFFSET $5`,
+          [user.facilityId, accessibleChildIds, search, limit, offset],
+        )
+      ).rows.reverse()
+    : []
   snapshot.notices = hasMembership
     ? (
         await database.query<NotebookSnapshot['notices'][number]>(
@@ -708,20 +695,6 @@ const commandSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     commandId,
-    type: z.literal('addFile'),
-    payload: z
-      .object({
-        facilityId: id,
-        name: text.min(1),
-        kind: z.enum(['PDF', '画像', '文書']),
-        sizeLabel: text,
-        sharedWith: z.union([z.literal('all'), z.array(id)]),
-        className: text.optional(),
-      })
-      .strict(),
-  }),
-  z.object({
-    commandId,
     type: z.literal('addEvent'),
     payload: z
       .object({
@@ -910,6 +883,52 @@ export async function mutateNotebook(
 ) {
   const command = commandSchema.parse(input)
   const snapshot = await readNotebook(database, user)
+  if (command.type === 'addMessage') {
+    if (!snapshot.children.some((child) => child.id === command.payload.childId))
+      throw new Error('Forbidden')
+    const messageId = randomUUID()
+    await database.transaction(async (transaction) => {
+      if (!(await acceptCommand(transaction, user.id, command.commandId))) return
+      await transaction.query(
+        `INSERT INTO message
+         (id, facility_id, child_id, sender_user_id, sender_role, sender_name, body, sent_at, command_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          messageId,
+          user.facilityId,
+          command.payload.childId,
+          user.id,
+          user.role,
+          user.name,
+          command.payload.text,
+          now.toISOString(),
+          command.commandId,
+        ],
+      )
+      await writeAudit(
+        transaction,
+        user,
+        command.commandId,
+        'created',
+        'message',
+        messageId,
+        null,
+        { childId: command.payload.childId },
+        now,
+      )
+      await createNotifications(
+        transaction,
+        user,
+        'message',
+        'message',
+        messageId,
+        `${user.name}さんからメッセージが届きました`,
+        now,
+        { childId: command.payload.childId },
+      )
+    })
+    return
+  }
   if (command.type === 'addNotebookEntry' || command.type === 'saveNotebookEntry') {
     if (!snapshot.children.some((child) => child.id === command.payload.childId))
       throw new Error('Forbidden')
@@ -1752,21 +1771,6 @@ export async function mutateNotebook(
           ],
         )
       }
-      await transaction.query(
-        `UPDATE app_record
-         SET data = data || $2::jsonb || jsonb_build_object(
-           'version', $4::integer + 1,
-           'updatedAt', $5::text
-         )
-         WHERE id = $1 AND kind = $3`,
-        [
-          `children:${command.payload.id}`,
-          JSON.stringify(command.payload.patch),
-          'children',
-          command.payload.expectedVersion,
-          now.toISOString(),
-        ],
-      )
       await writeAudit(
         transaction,
         user,
@@ -1781,69 +1785,4 @@ export async function mutateNotebook(
     })
     return
   }
-  const payload = command.payload
-  if ('childId' in payload) {
-    if (!snapshot.children.some((child) => child.id === payload.childId))
-      throw new Error('Forbidden')
-  } else if (
-    user.role !== 'teacher' ||
-    payload.facilityId !== user.facilityId ||
-    !snapshot.facilities.some((facility) => facility.id === user.facilityId)
-  ) {
-    throw new Error('Forbidden')
-  }
-  if (
-    command.type === 'addFile' &&
-    command.payload.sharedWith !== 'all' &&
-    command.payload.sharedWith.some(
-      (childId) => !snapshot.children.some((child) => child.id === childId),
-    )
-  ) {
-    throw new Error('Forbidden')
-  }
-  const kindByCommand = {
-    addMessage: 'messages',
-    addFile: 'sharedFiles',
-  }
-  const kind = kindByCommand[command.type]
-  const recordId = randomUUID()
-  const record = {
-    ...payload,
-    id: recordId,
-    ...(command.type === 'addMessage'
-      ? { senderId: user.id, sender: user.role, senderName: user.name, time: now.toISOString() }
-      : {}),
-    ...(command.type === 'addFile' ? { uploadedBy: user.name, date: todayInTimeZone(now) } : {}),
-  }
-  await database.transaction(async (transaction) => {
-    if (!(await acceptCommand(transaction, user.id, command.commandId))) return
-    await transaction.query('INSERT INTO app_record (id, kind, data) VALUES ($1, $2, $3::jsonb)', [
-      `${kind}:${recordId}`,
-      kind,
-      JSON.stringify(record),
-    ])
-    await writeAudit(
-      transaction,
-      user,
-      command.commandId,
-      'created',
-      command.type === 'addMessage' ? 'message' : 'legacy_file',
-      recordId,
-      null,
-      record,
-      now,
-    )
-    if (command.type === 'addMessage') {
-      await createNotifications(
-        transaction,
-        user,
-        'message',
-        'message',
-        recordId,
-        `${user.name}さんからメッセージが届きました`,
-        now,
-        { childId: command.payload.childId },
-      )
-    }
-  })
 }

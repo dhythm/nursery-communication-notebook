@@ -6,7 +6,6 @@ import type {
   NurseryClass,
   NotebookEntry,
   Notice,
-  SharedFile,
   User,
 } from './types'
 
@@ -241,50 +240,6 @@ export const messages: Message[] = [
     senderName: '加藤 ゆり',
     text: 'あおいちゃん、今日はお昼寝の前に少しぐずりましたが、その後はぐっすり眠れました。',
     time: '2026-09-12T15:10:00',
-  },
-]
-
-export const sharedFiles: SharedFile[] = [
-  {
-    id: 's1',
-    facilityId: 'f1',
-    name: '運動会のご案内.pdf',
-    kind: 'PDF',
-    sizeLabel: '1.2 MB',
-    sharedWith: 'all',
-    date: today,
-    uploadedBy: '山田 めぐみ',
-  },
-  {
-    id: 's2',
-    facilityId: 'f1',
-    name: '9月給食献立表.pdf',
-    kind: 'PDF',
-    sizeLabel: '840 KB',
-    sharedWith: 'all',
-    date: twoDaysAgo,
-    uploadedBy: '事務局',
-  },
-  {
-    id: 's3',
-    facilityId: 'f1',
-    name: 'そら組_保育参観のしおり.pdf',
-    kind: 'PDF',
-    sizeLabel: '2.1 MB',
-    sharedWith: ['c1', 'c3'],
-    className: 'そら組',
-    date: yesterday,
-    uploadedBy: '山田 めぐみ',
-  },
-  {
-    id: 's4',
-    facilityId: 'f1',
-    name: '園だより9月号.pdf',
-    kind: 'PDF',
-    sizeLabel: '1.8 MB',
-    sharedWith: 'all',
-    date: '2026-09-05',
-    uploadedBy: '園長',
   },
 ]
 

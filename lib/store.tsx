@@ -20,7 +20,6 @@ import type {
   NotebookSnapshot,
   Notice,
   Role,
-  SharedFile,
   NotificationCategory,
   User,
 } from './types'
@@ -37,7 +36,6 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
     message: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>,
   ) => Promise<void>
   addNotice: (notice: Omit<Notice, 'id' | 'date'>) => Promise<void>
-  addFile: (file: Omit<SharedFile, 'id' | 'date' | 'uploadedBy'>) => Promise<void>
   uploadFile: (
     file: File,
     displayName: string,
@@ -153,7 +151,6 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
     addNotebookEntry: (payload) => mutate({ type: 'addNotebookEntry', payload }),
     addMessage: (payload) => mutate({ type: 'addMessage', payload }),
     addNotice: (payload) => mutate({ type: 'addNotice', payload }),
-    addFile: (payload) => mutate({ type: 'addFile', payload }),
     uploadFile: async (file, displayName, targetClassId, purpose = 'shared', targetChildId) => {
       const form = new FormData()
       form.set('file', file)
