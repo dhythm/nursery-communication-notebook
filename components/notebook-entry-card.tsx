@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import {
   Clock3,
+  CircleCheck,
   Moon,
   Pencil,
   Thermometer,
@@ -27,11 +28,13 @@ export function NotebookEntryCard({
   showDate = false,
   onEdit,
   onWithdraw,
+  onConfirm,
 }: {
   entry: NotebookEntry
   showDate?: boolean
   onEdit?: () => void
   onWithdraw?: () => void
+  onConfirm?: () => void
 }) {
   const mood = moodConfig[entry.mood]
   const isTeacher = entry.author === 'teacher'
@@ -52,6 +55,12 @@ export function NotebookEntryCard({
           <span className="text-sm font-semibold">{entry.authorName}</span>
           {entry.status === 'draft' && (
             <Badge className="bg-accent text-accent-foreground">下書き</Badge>
+          )}
+          {entry.confirmedAt && (
+            <Badge className="bg-primary text-primary-foreground">
+              <CircleCheck className="size-3" />
+              園確認済み
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -78,6 +87,16 @@ export function NotebookEntryCard({
               onClick={onWithdraw}
             >
               <Undo2 className="size-4" />
+            </button>
+          )}
+          {onConfirm && entry.status === 'published' && !entry.confirmedAt && (
+            <button
+              type="button"
+              aria-label="連絡帳を確認済みにする"
+              className="rounded-full p-1.5 text-primary hover:bg-background/70"
+              onClick={onConfirm}
+            >
+              <CircleCheck className="size-4" />
             </button>
           )}
         </div>

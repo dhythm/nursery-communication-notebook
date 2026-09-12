@@ -71,9 +71,13 @@ export default function ParentNotebook() {
             <NotebookEntryCard
               key={entry.id}
               entry={entry}
-              onEdit={entry.authorId === currentUser?.id ? () => setEditingEntry(entry) : undefined}
+              onEdit={
+                entry.authorId === currentUser?.id && !entry.confirmedAt
+                  ? () => setEditingEntry(entry)
+                  : undefined
+              }
               onWithdraw={
-                entry.authorId === currentUser?.id
+                entry.authorId === currentUser?.id && !entry.confirmedAt
                   ? () => void withdrawNotebookEntry(entry.id, entry.version ?? 1)
                   : undefined
               }

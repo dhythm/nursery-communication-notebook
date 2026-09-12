@@ -471,6 +471,18 @@ const migrations = [
         CHECK (mood IN ('good', 'normal', 'bad'));
     `,
   },
+  {
+    version: 11,
+    sql: `
+      ALTER TABLE notebook_entry ADD COLUMN confirmed_at timestamptz;
+      ALTER TABLE notebook_entry ADD COLUMN confirmed_by_user_id text
+        REFERENCES app_user(id) ON DELETE RESTRICT;
+      ALTER TABLE notebook_entry ADD CONSTRAINT notebook_entry_confirmation_owner
+        CHECK (confirmed_at IS NULL OR (author_role = 'parent' AND confirmed_by_user_id IS NOT NULL));
+      CREATE INDEX notebook_entry_confirmation
+        ON notebook_entry(facility_id, confirmed_at) WHERE author_role = 'parent' AND status = 'published';
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

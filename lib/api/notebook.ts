@@ -75,7 +75,9 @@ export async function handleNotebookPost(request: Request, facilitySlug: string)
           ? 403
           : error instanceof Error && error.message === 'Conflict'
             ? 409
-            : 503
+            : error instanceof Error && error.message === 'Locked'
+              ? 423
+              : 503
     if (status === 503)
       logError('notebook_mutation_failed', error, { userId: user.id, facilityId: user.facilityId })
     return Response.json(
@@ -87,7 +89,9 @@ export async function handleNotebookPost(request: Request, facilitySlug: string)
               ? 'Forbidden'
               : status === 409
                 ? '他の利用者が先に更新しました。再読み込みして確認してください。'
-                : '保存できませんでした。',
+                : status === 423
+                  ? '園で確認済みのため変更できません。変更が必要な場合はメッセージで園へご連絡ください。'
+                  : '保存できませんでした。',
       },
       { status, headers },
     )

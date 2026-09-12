@@ -74,6 +74,8 @@ export interface NotebookEntry {
   version?: number
   authorId?: string
   updatedAt?: string
+  confirmedAt?: string
+  confirmedByName?: string
 }
 
 export interface Notice {
@@ -214,6 +216,7 @@ export type NotebookAction =
       }
     }
   | { type: 'withdrawNotebookEntry'; payload: { id: string; expectedVersion: number } }
+  | { type: 'confirmNotebookEntry'; payload: { id: string; expectedVersion: number } }
   | {
       type: 'saveNotice'
       payload: Omit<Notice, 'id' | 'facilityId' | 'date'> & { status: 'draft' | 'published' }

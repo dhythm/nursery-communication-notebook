@@ -103,10 +103,11 @@ export default function ParentHome() {
 
       <Button
         onClick={() => setEntryEditor({ child: selectedChild, entry: myToday })}
+        disabled={Boolean(myToday?.confirmedAt)}
         className="h-14 w-full rounded-3xl text-base font-bold shadow-sm"
       >
         <PencilLine className="size-5" />
-        子どもの様子を登録する
+        {myToday?.confirmedAt ? '園で確認済みです' : '子どもの様子を登録する'}
       </Button>
 
       <section className="space-y-3">

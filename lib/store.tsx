@@ -57,6 +57,7 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
     patch: Partial<NotebookEntry>,
   ) => Promise<void>
   withdrawNotebookEntry: (id: string, expectedVersion: number) => Promise<void>
+  confirmNotebookEntry: (id: string, expectedVersion: number) => Promise<void>
   saveNotice: (
     notice: Omit<Notice, 'id' | 'facilityId' | 'date'> & { status: 'draft' | 'published' },
   ) => Promise<void>
@@ -189,6 +190,8 @@ function ApplicationStoreProvider({ children: nodes, initialUser, authMode }: St
       mutate({ type: 'updateNotebookEntry', payload: { id, expectedVersion, patch } }),
     withdrawNotebookEntry: (id, expectedVersion) =>
       mutate({ type: 'withdrawNotebookEntry', payload: { id, expectedVersion } }),
+    confirmNotebookEntry: (id, expectedVersion) =>
+      mutate({ type: 'confirmNotebookEntry', payload: { id, expectedVersion } }),
     saveNotice: (payload) => mutate({ type: 'saveNotice', payload }),
     updateNotice: (id, expectedVersion, patch) =>
       mutate({ type: 'updateNotice', payload: { id, expectedVersion, patch } }),

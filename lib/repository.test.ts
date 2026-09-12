@@ -329,6 +329,46 @@ describe('notebook repository', () => {
     ).toEqual([{ action: 'draft_saved' }, { action: 'published' }])
   })
 
+  it('locks a parent notebook entry after a teacher confirms it', async () => {
+    const entry = (await readNotebook(database, teacher)).notebookEntries.find(
+      (candidate) => candidate.id === 'n2',
+    )!
+
+    await mutateNotebook(database, teacher, {
+      commandId: 'confirm-parent-notebook',
+      type: 'confirmNotebookEntry',
+      payload: { id: entry.id, expectedVersion: entry.version! },
+    })
+
+    expect(
+      (await readNotebook(database, parent)).notebookEntries.find(
+        (candidate) => candidate.id === entry.id,
+      ),
+    ).toMatchObject({
+      confirmedAt: expect.any(String),
+      confirmedByName: teacher.name,
+      version: entry.version! + 1,
+    })
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'edit-confirmed-parent-notebook',
+        type: 'updateNotebookEntry',
+        payload: {
+          id: entry.id,
+          expectedVersion: entry.version! + 1,
+          patch: { note: '確認後の変更' },
+        },
+      }),
+    ).rejects.toThrow('Locked')
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'withdraw-confirmed-parent-notebook',
+        type: 'withdrawNotebookEntry',
+        payload: { id: entry.id, expectedVersion: entry.version! + 1 },
+      }),
+    ).rejects.toThrow('Locked')
+  })
+
   it('publishes a targeted notice and persists read and confirmation state', async () => {
     await mutateNotebook(database, teacher, {
       commandId: 'important-notice',

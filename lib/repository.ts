@@ -286,8 +286,10 @@ export async function readNotebook(
              entry.pickup_person_name AS "pickupPersonName",
              to_char(entry.pickup_time, 'HH24:MI') AS "pickupTime",
              entry.photo, entry.status, entry.version,
-             entry.author_user_id AS "authorId", entry.updated_at::text AS "updatedAt"
+             entry.author_user_id AS "authorId", entry.updated_at::text AS "updatedAt",
+             entry.confirmed_at::text AS "confirmedAt", confirmer.name AS "confirmedByName"
            FROM notebook_entry entry
+           LEFT JOIN app_user confirmer ON confirmer.id = entry.confirmed_by_user_id
            WHERE entry.facility_id = $1 AND entry.child_id = ANY($2::text[])
              AND (entry.status = 'published' OR
                   (entry.status = 'draft' AND entry.author_user_id = $3))
@@ -602,6 +604,11 @@ const commandSchema = z.discriminatedUnion('type', [
   z.object({
     commandId,
     type: z.literal('withdrawNotebookEntry'),
+    payload: z.object({ id, expectedVersion: z.number().int().positive() }).strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('confirmNotebookEntry'),
     payload: z.object({ id, expectedVersion: z.number().int().positive() }).strict(),
   }),
   z.object({
@@ -1057,9 +1064,46 @@ export async function mutateNotebook(
     })
     return
   }
+  if (command.type === 'confirmNotebookEntry') {
+    if (user.role !== 'teacher') throw new Error('Forbidden')
+    const existing = snapshot.notebookEntries.find((entry) => entry.id === command.payload.id)
+    if (!existing || existing.author !== 'parent' || existing.status !== 'published')
+      throw new Error('Forbidden')
+    await database.transaction(async (transaction) => {
+      if (!(await acceptCommand(transaction, user.id, command.commandId))) return
+      const confirmed = await transaction.query<{ version: number }>(
+        `UPDATE notebook_entry
+         SET confirmed_at = $4, confirmed_by_user_id = $5, version = version + 1, updated_at = $4
+         WHERE id = $1 AND facility_id = $2 AND version = $3
+           AND author_role = 'parent' AND status = 'published' AND confirmed_at IS NULL
+         RETURNING version`,
+        [
+          command.payload.id,
+          user.facilityId,
+          command.payload.expectedVersion,
+          now.toISOString(),
+          user.id,
+        ],
+      )
+      if (!confirmed.rows.length) throw new Error('Conflict')
+      await writeAudit(
+        transaction,
+        user,
+        command.commandId,
+        'confirmed',
+        'notebook_entry',
+        command.payload.id,
+        existing,
+        { ...existing, confirmedAt: now.toISOString(), confirmedByName: user.name },
+        now,
+      )
+    })
+    return
+  }
   if (command.type === 'updateNotebookEntry' || command.type === 'withdrawNotebookEntry') {
     const existing = snapshot.notebookEntries.find((entry) => entry.id === command.payload.id)
     if (!existing || existing.authorId !== user.id) throw new Error('Forbidden')
+    if (user.role === 'parent' && existing.confirmedAt) throw new Error('Locked')
     await database.transaction(async (transaction) => {
       if (!(await acceptCommand(transaction, user.id, command.commandId))) return
       const patch = command.type === 'updateNotebookEntry' ? command.payload.patch : {}

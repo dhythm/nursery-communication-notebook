@@ -18,7 +18,14 @@ import { cn } from '@/lib/utils'
 import type { Child, NotebookEntry } from '@/lib/types'
 
 export default function TeacherChildren() {
-  const { currentUser, children, notebookEntries, updateChild, withdrawNotebookEntry } = useStore()
+  const {
+    currentUser,
+    children,
+    notebookEntries,
+    updateChild,
+    withdrawNotebookEntry,
+    confirmNotebookEntry,
+  } = useStore()
   const myChildren = useMemo(
     () => children.filter((c) => c.facilityId === currentUser?.facilityId),
     [children, currentUser],
@@ -154,6 +161,11 @@ export default function TeacherChildren() {
                   onWithdraw={
                     entry.authorId === currentUser?.id
                       ? () => void withdrawNotebookEntry(entry.id, entry.version ?? 1)
+                      : undefined
+                  }
+                  onConfirm={
+                    entry.author === 'parent' && entry.status === 'published' && !entry.confirmedAt
+                      ? () => void confirmNotebookEntry(entry.id, entry.version ?? 1)
                       : undefined
                   }
                 />

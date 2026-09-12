@@ -56,6 +56,21 @@ describe('notebook request origin', () => {
       error: '他の利用者が先に更新しました。再読み込みして確認してください。',
     })
   })
+  it('returns a locked response after the nursery confirms a notebook entry', async () => {
+    vi.mocked(mutateNotebook).mockRejectedValueOnce(new Error('Locked'))
+    const response = await handleNotebookPost(
+      new Request('http://localhost:3100/api/nurseries/nijiiro/notebook', {
+        method: 'POST',
+        headers: { host: 'localhost:3100', 'content-type': 'application/json' },
+        body: '{}',
+      }),
+      'nijiiro',
+    )
+    expect(response.status).toBe(423)
+    await expect(response.json()).resolves.toEqual({
+      error: '園で確認済みのため変更できません。変更が必要な場合はメッセージで園へご連絡ください。',
+    })
+  })
   it('hides another facility behind a not-found response', async () => {
     const response = await handleNotebookPost(
       new Request('http://localhost:3100/api/nurseries/himawari/notebook', {
