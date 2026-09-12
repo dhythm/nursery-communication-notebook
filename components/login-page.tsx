@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useActionState, useEffect, useState } from 'react'
 import Image from 'next/image'
-import { HeartHandshake, Lock, Mail, School } from 'lucide-react'
+import { ExternalLink, Github, HeartHandshake, Lock, Mail, School } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,7 +31,7 @@ const demoAccounts: Record<Role, { email: string; password: string; label: strin
     },
   }
 
-export default function LoginPage({ authMode }: { authMode: AuthMode }) {
+export default function LoginPage({ authMode, demoMode }: { authMode: AuthMode; demoMode: boolean }) {
   const router = useRouter()
   const { login } = useStore()
   const [role, setRole] = useState<Role>('parent')
@@ -174,6 +174,36 @@ export default function LoginPage({ authMode }: { authMode: AuthMode }) {
               <p className="mt-1 text-xs text-muted-foreground">
                 入力済みのままログインを押すとお試しいただけます。
               </p>
+            </div>
+          )}
+
+          {demoMode && (
+            <div className="mt-5 rounded-2xl border bg-card p-4 text-sm">
+              <p className="font-semibold text-foreground">このアプリを使いたい方へ</p>
+              <p className="mt-1 leading-6 text-muted-foreground">
+                ソースコードや導入方法はGitHubで公開しています。ご相談・お問い合わせはXからご連絡ください。
+              </p>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                <a
+                  href="https://github.com/dhythm/nursery-communication-notebook"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
+                >
+                  <Github className="size-4" />
+                  GitHub
+                  <ExternalLink className="size-3" />
+                </a>
+                <a
+                  href="https://x.com/dhythm_dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
+                >
+                  X（@dhythm_dev）
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
             </div>
           )}
         </div>
