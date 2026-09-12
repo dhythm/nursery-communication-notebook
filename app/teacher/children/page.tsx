@@ -17,6 +17,13 @@ import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import type { Child, NotebookEntry } from '@/lib/types'
 
+const japaneseNameCollator = new Intl.Collator('ja')
+
+function classAge(className: string) {
+  const match = className.match(/[（(](\d+)歳児[）)]/)
+  return match ? Number(match[1]) : Number.POSITIVE_INFINITY
+}
+
 export default function TeacherChildren() {
   const {
     currentUser,
@@ -30,13 +37,32 @@ export default function TeacherChildren() {
     () => children.filter((c) => c.facilityId === currentUser?.facilityId),
     [children, currentUser],
   )
+  const classGroups = useMemo(() => {
+    const classGroupById = new Map<string, { className: string; children: Child[] }>()
+    for (const child of myChildren) {
+      const classGroup = classGroupById.get(child.classId)
+      if (classGroup) classGroup.children.push(child)
+      else classGroupById.set(child.classId, { className: child.className, children: [child] })
+    }
+    return Array.from(classGroupById, ([classId, classGroup]) => ({
+      classId,
+      className: classGroup.className,
+      children: classGroup.children.sort((left, right) =>
+        japaneseNameCollator.compare(left.kana || left.name, right.kana || right.name),
+      ),
+    })).sort(
+      (left, right) =>
+        classAge(left.className) - classAge(right.className) ||
+        japaneseNameCollator.compare(left.className, right.className),
+    )
+  }, [myChildren])
   const [selectedId, setSelectedId] = useState(myChildren[0]?.id ?? '')
   const [entryEditor, setEntryEditor] = useState<{ child: Child; entry?: NotebookEntry } | null>(
     null,
   )
   const [editingChild, setEditingChild] = useState<Child | null>(null)
 
-  const selected = myChildren.find((c) => c.id === selectedId) ?? myChildren[0]
+  const selected = myChildren.find((child) => child.id === selectedId) ?? myChildren[0]
   const entries = notebookEntries
     .filter((e) => e.childId === selected?.id)
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -48,33 +74,58 @@ export default function TeacherChildren() {
       <PageTitle title="園児管理" subtitle="お子さまの情報と連絡帳の記入・管理" />
 
       <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
-        <Card className="h-fit p-2">
-          <p className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-            園児一覧（{myChildren.length}名）
-          </p>
-          <ul className="space-y-1">
-            {myChildren.map((child) => (
-              <li key={child.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(child.id)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors',
-                    selected.id === child.id ? 'bg-secondary' : 'hover:bg-muted',
-                  )}
-                >
-                  <ChildAvatar name={child.name} color={child.avatarColor} size={40} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{child.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{child.className}</p>
-                  </div>
-                  {child.allergies.length > 0 && (
-                    <AlertTriangle className="size-4 shrink-0 text-destructive" />
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
+        <Card className="h-fit overflow-hidden p-2 lg:sticky lg:top-8 lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto">
+          <nav aria-label="園児一覧">
+            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+              園児一覧（{myChildren.length}名）
+            </p>
+            <div className="space-y-3">
+              {classGroups.map((classGroup) => {
+                const headingId = `child-class-${classGroup.classId}`
+                return (
+                  <section
+                    key={classGroup.classId}
+                    aria-labelledby={headingId}
+                    className="overflow-hidden rounded-2xl border border-border/70"
+                  >
+                    <div className="flex items-center justify-between gap-2 bg-muted/70 px-3 py-2">
+                      <h2 id={headingId} className="truncate text-xs font-bold">
+                        {classGroup.className}
+                      </h2>
+                      <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+                        {classGroup.children.length}名
+                      </span>
+                    </div>
+                    <ul className="space-y-0.5 p-1">
+                      {classGroup.children.map((child) => (
+                        <li key={child.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedId(child.id)}
+                            className={cn(
+                              'flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors',
+                              selected.id === child.id ? 'bg-secondary' : 'hover:bg-muted',
+                            )}
+                          >
+                            <ChildAvatar name={child.name} color={child.avatarColor} size={38} />
+                            <p className="min-w-0 flex-1 truncate text-sm font-bold">
+                              {child.name}
+                            </p>
+                            {child.allergies.length > 0 && (
+                              <span className="shrink-0 text-destructive">
+                                <AlertTriangle aria-hidden="true" className="size-4" />
+                                <span className="sr-only">アレルギーあり</span>
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )
+              })}
+            </div>
+          </nav>
         </Card>
 
         <div className="space-y-5">

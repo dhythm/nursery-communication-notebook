@@ -157,6 +157,39 @@ test('a teacher can open child management and sign out', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'ログイン', exact: true })).toBeVisible()
 })
 
+test('the child list is grouped by class in age order', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '保育士', exact: true }).click()
+  await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
+  await expect(page).toHaveURL(teacherPath)
+  await page.goto(`${teacherPath}/children`)
+
+  const childNavigation = page.getByRole('navigation', { name: '園児一覧' })
+  const expectedClasses = [
+    ['うみ組（0歳児）', 6],
+    ['ほし組（1歳児）', 8],
+    ['つき組（2歳児）', 10],
+    ['かぜ組（3歳児）', 12],
+    ['そら組（4歳児）', 12],
+    ['にじ組（5歳児）', 12],
+  ] as const
+
+  await expect(childNavigation.getByRole('heading', { level: 2 })).toHaveText(
+    expectedClasses.map(([className]) => className),
+  )
+  for (const [className, childCount] of expectedClasses) {
+    const classGroup = childNavigation.getByRole('region', { name: className })
+    await expect(classGroup.getByText(`${childCount}名`, { exact: true })).toBeVisible()
+    await expect(classGroup.getByRole('button')).toHaveCount(childCount)
+  }
+  const listDimensions = await childNavigation.evaluate((element) => ({
+    clientHeight: element.parentElement?.clientHeight ?? 0,
+    scrollHeight: element.parentElement?.scrollHeight ?? 0,
+  }))
+  expect(listDimensions.clientHeight).toBeLessThan(page.viewportSize()!.height)
+  expect(listDimensions.scrollHeight).toBeGreaterThan(listDimensions.clientHeight)
+})
+
 test('child and calendar forms open with the currently selected target', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '保育士', exact: true }).click()
