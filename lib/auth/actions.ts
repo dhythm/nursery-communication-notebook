@@ -11,7 +11,9 @@ export async function selectSkipRole(role: Role) {
     throw new Error('Development authentication is disabled')
   if (role !== 'parent' && role !== 'teacher') throw new Error('Invalid role')
   ;(await cookies()).set(skipRoleCookie, role, { httpOnly: true, sameSite: 'lax', path: '/' })
-  return skipAuthentication.getUser()
+  const user = await skipAuthentication.getUser()
+  if (!user) throw new Error('Development user is missing')
+  return user
 }
 
 export async function clearSkipRole() {

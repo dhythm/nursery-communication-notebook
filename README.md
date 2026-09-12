@@ -70,7 +70,17 @@ Clerk・Neonの実装やキー設定はまだありません。本番認証を�
 
 ## 画面・API・DB
 
-画面 → TanStack Query → `/api/notebook` → repository → PostgreSQL / PGlite の順でアクセスします。
+画面 → TanStack Query → 園slug付きAPI → repository → PostgreSQL / PGlite の順でアクセスします。
+
+画面とAPIは園ごとの公開slugを含む正規URLを使用します。デモ園の例は次のとおりです。
+
+```text
+/nurseries/nijiiro/parent/notebook
+/nurseries/nijiiro/teacher/children
+/api/nurseries/nijiiro/notebook
+```
+
+slugは表示上の園コンテキストであり、それ自体を認可情報として信用しません。サーバーは毎回、slugから特定した園、認証利用者の園ID、現在有効な所属、ロールが一致することを確認します。不一致は404として扱い、旧slugなし画面・APIは正規経路として使用しません。
 
 - GETを利用者ごとに60秒キャッシュし、30秒ごとに相手の更新を確認します。
 - 保存はPOSTで実行し、成功後にキャッシュを無効化・再取得します。

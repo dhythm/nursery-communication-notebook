@@ -1,7 +1,8 @@
+import { redirect } from 'next/navigation'
 import { requireRole } from '@/lib/auth/server'
-import { ParentShell } from '@/components/parent/parent-shell'
+import { facilityPagePath } from '@/lib/facility-path'
 
-export default async function ParentLayout({ children }: { children: React.ReactNode }) {
-  await requireRole('parent')
-  return <ParentShell>{children}</ParentShell>
+export default async function ParentLayout() {
+  const user = await requireRole('parent')
+  redirect(facilityPagePath(user.facilitySlug, 'parent'))
 }

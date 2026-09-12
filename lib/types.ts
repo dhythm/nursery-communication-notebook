@@ -2,6 +2,7 @@ export type Role = 'parent' | 'teacher'
 
 export interface Facility {
   id: string
+  slug: string
   name: string
   logoColor: string
 }
@@ -18,6 +19,7 @@ export interface User {
   role: Role
   name: string
   facilityId: string
+  facilitySlug: string
   email: string
   childIds?: string[]
   jobTitle?: string

@@ -5,9 +5,12 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
+import { useParams } from 'next/navigation'
+import { facilityApiPath } from '@/lib/facility-path'
 
 export default function ParentFilesPage() {
   const { sharedFiles } = useStore()
+  const { facilitySlug } = useParams<{ facilitySlug: string }>()
   return (
     <div className="space-y-4 p-4 pb-8">
       <h1 className="pt-1 font-display text-xl font-bold">資料</h1>
@@ -27,7 +30,7 @@ export default function ParentFilesPage() {
                 {file.className && <Badge className="mt-1">{file.className}</Badge>}
               </div>
               <a
-                href={file.downloadUrl}
+                href={facilityApiPath(facilitySlug, `/files/${file.id}`)}
                 aria-label={`${file.name}をダウンロード`}
                 className="rounded-full p-2 hover:bg-muted"
               >

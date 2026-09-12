@@ -26,7 +26,7 @@ import type {
 
 interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   currentUser: User | null
-  login: (role: Role) => Promise<void>
+  login: (role: Role) => Promise<User>
   logout: () => Promise<void>
   facilityName: (id: string) => string
   addNotebookEntry: (
@@ -121,6 +121,7 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
   const queryScope = {
     userId: currentUser?.id ?? '',
     facilityId: currentUser?.facilityId ?? '',
+    facilitySlug: currentUser?.facilitySlug ?? '',
     role: currentUser?.role ?? ('parent' as const),
   }
   const query = useQuery({ ...notebookQuery(queryScope), enabled: currentUser !== null })
@@ -133,6 +134,7 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
     const user = await selectSkipRole(role)
     client.clear()
     setCurrentUser(user)
+    return user
   }
   const logout = async () => {
     const user = await clearSkipRole()
@@ -159,14 +161,18 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
       if (targetClassId) form.set('targetClassId', targetClassId)
       if (targetChildId) form.set('targetChildId', targetChildId)
       form.set('purpose', purpose)
-      const response = await fetch('/api/files', { method: 'POST', body: form })
+      if (!currentUser) throw new Error('ログインしてください。')
+      const response = await fetch(`/api/nurseries/${currentUser.facilitySlug}/files`, {
+        method: 'POST',
+        body: form,
+      })
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null
         throw new Error(body?.error ?? 'アップロードできませんでした。')
       }
       const result = (await response.json()) as { id: string }
       await client.invalidateQueries({ queryKey: notebookQuery(queryScope).queryKey })
-      return `/api/files/${result.id}?inline=1`
+      return `/api/nurseries/${currentUser.facilitySlug}/files/${result.id}?inline=1`
     },
     addEvent: (payload) => mutate({ type: 'addEvent', payload }),
     updateChild: (id, expectedVersion, patch) =>

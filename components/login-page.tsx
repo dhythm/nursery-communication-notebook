@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { useStore } from '@/lib/store'
 import type { Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { facilityPagePath } from '@/lib/facility-path'
 
 const demoAccounts: Record<Role, { email: string; password: string; label: string; hint: string }> =
   {
@@ -43,8 +44,8 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    await login(role)
-    router.push(role === 'parent' ? '/parent' : '/teacher')
+    const user = await login(role)
+    router.push(facilityPagePath(user.facilitySlug, role))
   }
 
   return (

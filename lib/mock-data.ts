@@ -10,8 +10,8 @@ import type {
 } from './types'
 
 export const facilities: Facility[] = [
-  { id: 'f1', name: 'にじいろ保育園', logoColor: 'oklch(0.67 0.13 158)' },
-  { id: 'f2', name: 'ひまわり保育園', logoColor: 'oklch(0.78 0.13 75)' },
+  { id: 'f1', slug: 'nijiiro', name: 'にじいろ保育園', logoColor: 'oklch(0.67 0.13 158)' },
+  { id: 'f2', slug: 'himawari', name: 'ひまわり保育園', logoColor: 'oklch(0.78 0.13 75)' },
 ]
 
 export const nurseryClasses: NurseryClass[] = [
@@ -77,6 +77,7 @@ export const users: User[] = [
     role: 'parent',
     name: '田中 さくら',
     facilityId: 'f1',
+    facilitySlug: 'nijiiro',
     email: 'sakura@example.com',
     childIds: ['c1', 'c2'],
   },
@@ -85,6 +86,7 @@ export const users: User[] = [
     role: 'teacher',
     name: '山田 めぐみ',
     facilityId: 'f1',
+    facilitySlug: 'nijiiro',
     email: 'yamada@nijiiro.ed.jp',
     jobTitle: 'そら組 担任',
   },

@@ -11,8 +11,18 @@ const snapshot = {
   sharedFiles: [],
   calendarEvents: [],
 }
-const parentScope = { userId: 'parent', facilityId: 'facility', role: 'parent' as const }
-const teacherScope = { userId: 'teacher', facilityId: 'facility', role: 'teacher' as const }
+const parentScope = {
+  userId: 'parent',
+  facilityId: 'facility',
+  facilitySlug: 'nijiiro',
+  role: 'parent' as const,
+}
+const teacherScope = {
+  userId: 'teacher',
+  facilityId: 'facility',
+  facilitySlug: 'nijiiro',
+  role: 'teacher' as const,
+}
 afterEach(() => vi.unstubAllGlobals())
 
 describe('notebook server cache', () => {
@@ -27,6 +37,9 @@ describe('notebook server cache', () => {
     expect(notebookQuery(parentScope).queryKey).not.toEqual(
       notebookQuery({ ...parentScope, role: 'teacher' }).queryKey,
     )
+    expect(notebookQuery(parentScope).queryKey).not.toEqual(
+      notebookQuery({ ...parentScope, facilitySlug: 'himawari' }).queryKey,
+    )
   })
 
   it('reuses fresh data for the same user and isolates another user', async () => {
@@ -36,6 +49,7 @@ describe('notebook server cache', () => {
     await client.fetchQuery(notebookQuery(parentScope))
     await client.fetchQuery(notebookQuery(parentScope))
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith('/api/nurseries/nijiiro/notebook', expect.anything())
     await client.fetchQuery(notebookQuery(teacherScope))
     expect(fetchMock).toHaveBeenCalledTimes(2)
     client.clear()

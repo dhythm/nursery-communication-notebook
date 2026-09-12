@@ -18,6 +18,7 @@ import { ChildAvatar } from '@/components/ui/child-avatar'
 import { ParentProvider, useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
 import { ageFromBirthday } from '@/lib/format'
+import { useFacilityPath } from '@/lib/facility-path-client'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -128,17 +129,18 @@ function ChildHeader() {
 
 function BottomNav() {
   const pathname = usePathname()
+  const facilityPath = useFacilityPath()
   return (
     <nav className="shrink-0 border-t border-border bg-card">
       <ul className="flex items-stretch justify-around px-1 py-1.5">
         {navItems.map((item) => {
-          const active =
-            item.href === '/parent' ? pathname === '/parent' : pathname.startsWith(item.href)
+          const href = facilityPath(item.href)
+          const active = item.href === '/parent' ? pathname === href : pathname.startsWith(href)
           const Icon = item.icon
           return (
             <li key={item.href} className="flex-1">
               <Link
-                href={item.href}
+                href={href}
                 className={cn(
                   'flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[0.65rem] font-semibold transition-colors',
                   active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',

@@ -411,6 +411,22 @@ const migrations = [
       ON CONFLICT (id) DO NOTHING;
     `,
   },
+  {
+    version: 7,
+    sql: `
+      ALTER TABLE facility ADD COLUMN slug text;
+      UPDATE facility SET slug = CASE id
+        WHEN 'f1' THEN 'nijiiro'
+        WHEN 'f2' THEN 'himawari'
+        WHEN 'sample-facility' THEN 'sample-nursery'
+        ELSE 'nursery-' || substr(md5(id), 1, 12)
+      END;
+      ALTER TABLE facility ALTER COLUMN slug SET NOT NULL;
+      ALTER TABLE facility ADD CONSTRAINT facility_slug_format
+        CHECK (slug ~ '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$');
+      ALTER TABLE facility ADD CONSTRAINT facility_slug_unique UNIQUE (slug);
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {
@@ -443,8 +459,8 @@ export async function migrateDatabase(database: Database): Promise<void> {
 
 export async function seedDatabase(database: Database): Promise<void> {
   await database.query(
-    'INSERT INTO facility (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
-    ['sample-facility', 'サンプル保育園'],
+    'INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
+    ['sample-facility', 'sample-nursery', 'サンプル保育園'],
   )
 }
 

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
 import { useStore } from '@/lib/store'
+import { useFacilityPath } from '@/lib/facility-path-client'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -33,6 +34,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
   const { currentUser, facilityName, logout } = useStore()
   const router = useRouter()
   const pathname = usePathname()
+  const facilityPath = useFacilityPath()
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== 'teacher') router.replace('/')
@@ -53,13 +55,14 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         <nav className="flex-1 px-3">
           <ul className="space-y-1">
             {navItems.map((item) => {
+              const href = facilityPath(item.href)
               const active =
-                item.href === '/teacher' ? pathname === '/teacher' : pathname.startsWith(item.href)
+                item.href === '/teacher' ? pathname === href : pathname.startsWith(href)
               const Icon = item.icon
               return (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={href}
                     className={cn(
                       'flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-colors',
                       active
@@ -112,13 +115,14 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         <nav className="shrink-0 border-t border-border bg-card md:hidden">
           <ul className="flex items-stretch justify-around px-1 py-1.5">
             {navItems.map((item) => {
+              const href = facilityPath(item.href)
               const active =
-                item.href === '/teacher' ? pathname === '/teacher' : pathname.startsWith(item.href)
+                item.href === '/teacher' ? pathname === href : pathname.startsWith(href)
               const Icon = item.icon
               return (
                 <li key={item.href} className="flex-1">
                   <Link
-                    href={item.href}
+                    href={href}
                     className={cn(
                       'flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[0.6rem] font-semibold transition-colors',
                       active ? 'text-primary' : 'text-muted-foreground',

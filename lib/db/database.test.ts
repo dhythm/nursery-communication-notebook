@@ -34,12 +34,12 @@ describe('PGlite database', () => {
     const database = await openDatabase()
     await migrateDatabase(database)
     await migrateDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 6, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 7, seeded: false })
     await seedDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 6, seeded: true })
-    expect((await database.query('SELECT id, name FROM facility')).rows).toEqual([
-      { id: 'sample-facility', name: 'サンプル保育園' },
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 7, seeded: true })
+    expect((await database.query('SELECT id, name, slug FROM facility')).rows).toEqual([
+      { id: 'sample-facility', name: 'サンプル保育園', slug: 'sample-nursery' },
     ])
   }, 20_000)
 
@@ -61,7 +61,8 @@ describe('PGlite database', () => {
     await migrateDatabase(database)
     await expect(
       database.transaction(async (transaction) => {
-        await transaction.query('INSERT INTO facility (id, name) VALUES ($1, $2)', [
+        await transaction.query('INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3)', [
+          'failed',
           'failed',
           '失敗',
         ])
@@ -77,7 +78,11 @@ describe('PGlite database', () => {
     const database = await openDatabase()
     await migrateDatabase(database)
     const name = "'); DROP TABLE facility; --"
-    await database.query('INSERT INTO facility (id, name) VALUES ($1, $2)', ['input', name])
+    await database.query('INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3)', [
+      'input',
+      'input',
+      name,
+    ])
     expect(
       (await database.query('SELECT name FROM facility WHERE id = $1', ['input'])).rows,
     ).toEqual([{ name }])
@@ -93,6 +98,7 @@ describe('PGlite database', () => {
       { version: 4 },
       { version: 5 },
       { version: 6 },
+      { version: 7 },
     ])
   }, 20_000)
 
@@ -104,7 +110,7 @@ describe('PGlite database', () => {
     await seedDatabase(database)
     await database.close()
     const reopened = await openDatabase(directory)
-    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 6, seeded: true })
+    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 7, seeded: true })
   }, 20_000)
 
   it('creates missing parent directories for a persistent database', async () => {
@@ -113,7 +119,7 @@ describe('PGlite database', () => {
     const database = await openDatabase(join(directory, 'missing-parent', 'pglite'))
     await migrateDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 6, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 7, seeded: true })
   }, 20_000)
 
   it('fails readiness checks before migrations have run', async () => {
@@ -121,11 +127,43 @@ describe('PGlite database', () => {
     await expect(checkDatabase(database)).rejects.toThrow()
   }, 20_000)
 
+  it('requires a unique URL-safe facility slug', async () => {
+    const database = await openDatabase()
+    await migrateDatabase(database)
+    await database.query('INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3)', [
+      'facility-a',
+      'safe-nursery',
+      'A園',
+    ])
+    await expect(
+      database.query('INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3)', [
+        'facility-b',
+        'safe-nursery',
+        'B園',
+      ]),
+    ).rejects.toThrow()
+    await expect(
+      database.query('INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3)', [
+        'facility-c',
+        '../unsafe',
+        'C園',
+      ]),
+    ).rejects.toThrow()
+  }, 20_000)
+
   it('enforces normalized child enrollment references and one current class', async () => {
     const database = await openDatabase()
     await migrateDatabase(database)
-    await database.query('INSERT INTO facility (id, name) VALUES ($1, $2)', ['facility-a', 'A園'])
-    await database.query('INSERT INTO facility (id, name) VALUES ($1, $2)', ['facility-b', 'B園'])
+    await database.query('INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3)', [
+      'facility-a',
+      'facility-a',
+      'A園',
+    ])
+    await database.query('INSERT INTO facility (id, slug, name) VALUES ($1, $2, $3)', [
+      'facility-b',
+      'facility-b',
+      'B園',
+    ])
     await database.query('INSERT INTO nursery_class (id, facility_id, name) VALUES ($1, $2, $3)', [
       'class-a',
       'facility-a',
@@ -210,7 +248,7 @@ describe('PGlite database', () => {
         )
       ).rows,
     ).toEqual([{ id: 'legacy-child', class_name: '既存組' }])
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 6, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 7, seeded: false })
   }, 20_000)
 
   it('creates constrained workflow, notification, audit, and file tables', async () => {

@@ -60,7 +60,7 @@ describe('server authentication boundary', () => {
   })
 
   it('rejects server-rendered teacher routes for parents', async () => {
-    await expect(requireRole('teacher')).rejects.toThrow('redirect:/parent')
+    await expect(requireRole('teacher')).rejects.toThrow('redirect:/nurseries/nijiiro/parent')
   })
 
   it('returns the server identity after role changes and logout', async () => {

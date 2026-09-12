@@ -18,8 +18,10 @@ import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { ageFromBirthday } from '@/lib/format'
 import { useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
+import { useFacilityPath } from '@/lib/facility-path-client'
 
 export default function ParentSettings() {
+  const facilityPath = useFacilityPath()
   const {
     currentUser,
     facilityName,
@@ -105,17 +107,17 @@ export default function ParentSettings() {
         <h2 className="px-1 font-display text-sm font-bold text-muted-foreground">その他</h2>
         <Card className="divide-y divide-border p-0">
           <LinkRow
-            href="/parent/settings/privacy"
+            href={facilityPath('/parent/settings/privacy')}
             icon={<ShieldCheck className="size-4" />}
             label="プライバシーとセキュリティ"
           />
           <LinkRow
-            href="/parent/settings/help"
+            href={facilityPath('/parent/settings/help')}
             icon={<HelpCircle className="size-4" />}
             label="ヘルプ・お問い合わせ"
           />
           <LinkRow
-            href="/parent/settings/terms"
+            href={facilityPath('/parent/settings/terms')}
             icon={<FileText className="size-4" />}
             label="利用規約"
           />

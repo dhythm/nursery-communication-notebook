@@ -25,6 +25,7 @@ import {
   todayInTimeZone,
 } from '@/lib/format'
 import { useParent } from '@/lib/parent-context'
+import { useFacilityPath } from '@/lib/facility-path-client'
 import { useStore } from '@/lib/store'
 import type { Child, NotebookEntry } from '@/lib/types'
 
@@ -38,6 +39,7 @@ export default function ParentHome() {
     markNotificationRead,
   } = useStore()
   const { selectedChild } = useParent()
+  const facilityPath = useFacilityPath()
   const [entryEditor, setEntryEditor] = useState<{ child: Child; entry?: NotebookEntry } | null>(
     null,
   )
@@ -111,7 +113,7 @@ export default function ParentHome() {
         <SectionHeader
           icon={<NotebookPen className="size-4" />}
           title="今日の連絡帳"
-          href="/parent/notebook"
+          href={facilityPath('/parent/notebook')}
         />
         {todayEntries.length > 0 ? (
           todayEntries.map((entry) => <NotebookEntryCard key={entry.id} entry={entry} />)
@@ -152,13 +154,13 @@ export default function ParentHome() {
         <SectionHeader
           icon={<CalendarDays className="size-4" />}
           title="お知らせ"
-          href="/parent/notices"
+          href={facilityPath('/parent/notices')}
         />
         <div className="space-y-2">
           {topNotices.map((notice) => (
             <Link
               key={notice.id}
-              href="/parent/notices"
+              href={facilityPath('/parent/notices')}
               className="flex items-start gap-3 rounded-3xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/50"
             >
               <div className="min-w-0 flex-1">

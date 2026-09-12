@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { Database } from './db'
 import { todayInTimeZone } from './format'
+import { facilityApiPath } from './facility-path'
 import * as seed from './mock-data'
 import type { NotebookSnapshot, User } from './types'
 
@@ -10,9 +11,9 @@ export async function seedNotebook(database: Database) {
   await database.transaction(async (transaction) => {
     for (const facility of seed.facilities) {
       await transaction.query(
-        `INSERT INTO facility (id, name, logo_color)
-         VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
-        [facility.id, facility.name, facility.logoColor],
+        `INSERT INTO facility (id, slug, name, logo_color)
+         VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING`,
+        [facility.id, facility.slug, facility.name, facility.logoColor],
       )
     }
     for (const user of seed.users) {
@@ -185,6 +186,7 @@ export async function seedNotebook(database: Database) {
 }
 
 export interface ReadNotebookOptions {
+  facilitySlug?: string
   from?: string
   to?: string
   search?: string
@@ -210,7 +212,7 @@ export async function readNotebook(
   const isFacilityWide = membership.rows[0]?.access_scope === 'facility'
   const facilityResult = hasMembership
     ? await database.query<NotebookSnapshot['facilities'][number]>(
-        `SELECT id, name, logo_color AS "logoColor"
+        `SELECT id, slug, name, logo_color AS "logoColor"
          FROM facility WHERE id = $1`,
         [user.facilityId],
       )
@@ -352,7 +354,7 @@ export async function readNotebook(
                ELSE jsonb_build_array(file.target_class_id) END AS "sharedWith",
              class.name AS "className", file.created_at::date::text AS date,
              uploader.name AS "uploadedBy", file.content_type AS "contentType",
-             file.byte_size::integer AS "byteSize", '/api/files/' || file.id AS "downloadUrl"
+             file.byte_size::integer AS "byteSize"
            FROM file_object file
            JOIN app_user uploader ON uploader.id = file.uploader_user_id
            LEFT JOIN nursery_class class ON class.id = file.target_class_id
@@ -369,6 +371,13 @@ export async function readNotebook(
         )
       ).rows
     : []
+  const facilitySlug = options.facilitySlug
+  if (facilitySlug) {
+    snapshot.sharedFiles = snapshot.sharedFiles.map((file) => ({
+      ...file,
+      downloadUrl: facilityApiPath(facilitySlug, `/files/${file.id}`),
+    }))
+  }
   snapshot.calendarEvents = hasMembership
     ? (
         await database.query<NotebookSnapshot['calendarEvents'][number]>(

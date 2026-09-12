@@ -448,6 +448,7 @@ describe('notebook repository', () => {
           name: guardian.name,
           email: guardian.email,
           facilityId: teacher.facilityId,
+          facilitySlug: teacher.facilitySlug,
         })
       ).children.map((item) => item.id),
     ).toEqual([child.id])

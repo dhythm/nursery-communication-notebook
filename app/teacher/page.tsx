@@ -9,10 +9,12 @@ import { Card } from '@/components/ui/card'
 import { ChildAvatar } from '@/components/ui/child-avatar'
 import { eventColor, formatDate, formatTime, moodConfig, todayInTimeZone } from '@/lib/format'
 import { useStore } from '@/lib/store'
+import { useFacilityPath } from '@/lib/facility-path-client'
 import { cn } from '@/lib/utils'
 
 export default function TeacherDashboard() {
   const { currentUser, children, notebookEntries, messages, calendarEvents } = useStore()
+  const facilityPath = useFacilityPath()
   const today = todayInTimeZone()
 
   const myChildren = useMemo(
@@ -88,7 +90,10 @@ export default function TeacherDashboard() {
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between p-5 pb-3">
             <h2 className="font-display text-lg font-bold">本日のクラスの様子</h2>
-            <Link href="/teacher/children" className="text-sm font-semibold text-primary">
+            <Link
+              href={facilityPath('/teacher/children')}
+              className="text-sm font-semibold text-primary"
+            >
               園児管理へ
             </Link>
           </div>
@@ -98,7 +103,7 @@ export default function TeacherDashboard() {
               return (
                 <Link
                   key={child.id}
-                  href="/teacher/children"
+                  href={facilityPath('/teacher/children')}
                   className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40"
                 >
                   <ChildAvatar name={child.name} color={child.avatarColor} size={42} />
@@ -161,7 +166,10 @@ export default function TeacherDashboard() {
           <Card>
             <div className="flex items-center justify-between p-5 pb-3">
               <h2 className="font-display text-lg font-bold">最近のメッセージ</h2>
-              <Link href="/teacher/messages" className="text-sm font-semibold text-primary">
+              <Link
+                href={facilityPath('/teacher/messages')}
+                className="text-sm font-semibold text-primary"
+              >
                 すべて
               </Link>
             </div>
@@ -171,7 +179,7 @@ export default function TeacherDashboard() {
                 return (
                   <Link
                     key={m.id}
-                    href="/teacher/messages"
+                    href={facilityPath('/teacher/messages')}
                     className="block rounded-2xl px-2 py-2 transition-colors hover:bg-muted/40"
                   >
                     <div className="flex items-center gap-2">

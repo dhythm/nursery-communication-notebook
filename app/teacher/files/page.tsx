@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
+import { useParams } from 'next/navigation'
+import { facilityApiPath } from '@/lib/facility-path'
 import type { SharedFile } from '@/lib/types'
 
 const kindIcon = { PDF: FileText, 画像: ImageIcon, 文書: FileText }
@@ -21,6 +23,7 @@ const kindColor: Record<SharedFile['kind'], string> = {
 
 export default function TeacherFiles() {
   const { currentUser, children, sharedFiles, uploadFile } = useStore()
+  const { facilitySlug } = useParams<{ facilitySlug: string }>()
   const [open, setOpen] = useState(false)
 
   const files = useMemo(
@@ -73,7 +76,7 @@ export default function TeacherFiles() {
                 </div>
               </div>
               <a
-                href={file.downloadUrl}
+                href={facilityApiPath(facilitySlug, `/files/${file.id}`)}
                 aria-label="ダウンロード"
                 className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >

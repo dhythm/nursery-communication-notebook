@@ -1,8 +1,11 @@
 import 'server-only'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { cache } from 'react'
 import { skipAuthentication } from './skip-provider'
 import { getRuntimeConfig } from '@/lib/runtime-config'
+import { getDatabase } from '@/lib/db'
+import { canAccessFacility } from '@/lib/facility-access'
+import { facilityPagePath } from '@/lib/facility-path'
 import type { Role, User } from '@/lib/types'
 
 export const getCurrentUser = cache(async (): Promise<User | null> => {
@@ -16,8 +19,20 @@ export async function getIdentity(): Promise<{ id: string; role: Role } | null> 
 }
 
 export async function requireRole(role: Role) {
-  const identity = await getIdentity()
-  if (!identity) redirect('/')
-  if (identity.role !== role) redirect(`/${identity.role}`)
-  return identity
+  const user = await getCurrentUser()
+  if (!user) redirect('/')
+  if (user.role !== role) redirect(facilityPagePath(user.facilitySlug, user.role))
+  return user
+}
+
+export async function requireFacilityRole(facilitySlug: string, role: Role) {
+  const user = await requireRole(role)
+  if (!(await canAccessFacility(await getDatabase(), user, facilitySlug, role))) notFound()
+  return user
+}
+
+export async function getFacilityUser(facilitySlug: string) {
+  const user = await getCurrentUser()
+  if (!user) return null
+  return (await canAccessFacility(await getDatabase(), user, facilitySlug, user.role)) ? user : null
 }
