@@ -103,7 +103,11 @@ export default function TeacherMessages() {
           </div>
         </div>
         <div className="min-h-0 flex-1">
-          <ChatThread childId={selected.id} role="teacher" />
+          <ChatThread
+            key={`${currentUser.id}:${selected.id}`}
+            childId={selected.id}
+            role="teacher"
+          />
         </div>
       </section>
     </div>
