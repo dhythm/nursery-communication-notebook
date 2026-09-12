@@ -1,4 +1,7 @@
 import type { Database } from './index'
+import { riskPlanMigrationSql } from '../operations/risk-plans-schema'
+import { attendanceMigrationSql } from '../operations/attendance-schema'
+import { napMigrationSql } from '../operations/nap-schema'
 
 const migrations = [
   {
@@ -566,6 +569,7 @@ const migrations = [
       CREATE INDEX message_draft_updated ON message_draft(facility_id, updated_at DESC);
     `,
   },
+  { version: 18, sql: `${riskPlanMigrationSql};${attendanceMigrationSql};${napMigrationSql}` },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

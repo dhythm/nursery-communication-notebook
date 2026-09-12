@@ -7,6 +7,24 @@ import { formatDate, formatTime } from '@/lib/format'
 import { useStore } from '@/lib/store'
 
 const actionLabel: Record<string, string> = {
+  create: '作成',
+  update: '更新',
+  resolve: '対応完了',
+  reopen: '再開',
+  submit: '提出',
+  approve: '承認',
+  return: '差戻し',
+  evaluate: '評価',
+  copy: '複製',
+  clock_in: '出勤',
+  clock_out: '退勤',
+  break_start: '休憩開始',
+  break_end: '休憩終了',
+  correct: '訂正',
+  start: '午睡開始',
+  observe: '観察',
+  respond: '対応記録',
+  end: '午睡終了',
   created: '作成',
   updated: '更新',
   published: '配信',
@@ -18,6 +36,10 @@ const actionLabel: Record<string, string> = {
   uploaded: 'アップロード',
 }
 const entityLabel: Record<string, string> = {
+  risks: 'リスク報告',
+  plans: '指導計画',
+  attendance: '出退勤',
+  nap: '午睡チェック',
   child: '園児',
   notebook_entry: '連絡帳',
   notice: 'お知らせ',

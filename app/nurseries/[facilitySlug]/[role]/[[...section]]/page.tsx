@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { OperationsPage } from '@/components/operations/operations-page'
 import { ParentChildDetails } from '@/components/parent/child-details'
 import { requireFacilityRole } from '@/lib/auth/server'
 import { getDatabase } from '@/lib/db'
@@ -35,6 +36,11 @@ const parentPages: Record<string, React.ComponentType> = {
 
 const teacherPages: Record<string, React.ComponentType> = {
   '': TeacherDashboard,
+  operations: () => <OperationsPage />,
+  'operations/risks': () => <OperationsPage section="risks" />,
+  'operations/attendance': () => <OperationsPage section="attendance" />,
+  'operations/plans': () => <OperationsPage section="plans" />,
+  'operations/nap': () => <OperationsPage section="nap" />,
   audit: TeacherAudit,
   calendar: TeacherCalendar,
   children: TeacherChildren,

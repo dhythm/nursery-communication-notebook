@@ -13,6 +13,7 @@ import {
   Users,
   ShieldCheck,
   Settings2,
+  ClipboardList,
 } from 'lucide-react'
 import { BrandLogo } from '@/components/brand'
 import { useStore } from '@/lib/store'
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/teacher', label: 'ダッシュボード', icon: LayoutDashboard },
+  { href: '/teacher/operations', label: '職員業務', icon: ClipboardList },
   { href: '/teacher/children', label: '園児管理', icon: Users },
   { href: '/teacher/messages', label: 'メッセージ', icon: MessageCircle },
   { href: '/teacher/notices', label: 'お知らせ', icon: Megaphone },
@@ -55,7 +57,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         <div className="p-5">
           <BrandLogo />
         </div>
-        <nav className="flex-1 px-3">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3">
           <ul className="space-y-1">
             {visibleNavItems.map((item) => {
               const href = facilityPath(item.href)
@@ -116,14 +118,14 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
 
         <nav className="shrink-0 border-t border-border bg-card md:hidden">
-          <ul className="flex items-stretch justify-around px-1 py-1.5">
+          <ul className="flex items-stretch overflow-x-auto px-1 py-1.5">
             {visibleNavItems.map((item) => {
               const href = facilityPath(item.href)
               const active =
                 item.href === '/teacher' ? pathname === href : pathname.startsWith(href)
               const Icon = item.icon
               return (
-                <li key={item.href} className="flex-1">
+                <li key={item.href} className="min-w-16 flex-1">
                   <Link
                     href={href}
                     className={cn(
