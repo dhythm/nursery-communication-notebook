@@ -202,7 +202,7 @@ test('a facility slug cannot be changed to access another nursery', async ({ pag
   await expect(page).toHaveURL(parentPath)
 
   await page.goto('/nurseries/himawari/parent')
-  await expect(page.getByText('This page could not be found.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ページが見つかりません' })).toBeVisible()
 
   const apiResponse = await request.get('/api/nurseries/himawari/notebook')
   expect(apiResponse.status()).toBe(404)
