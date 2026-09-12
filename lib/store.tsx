@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
+import { signOut as authjsSignOut } from 'next-auth/react'
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { AppLoading } from '@/components/app-loading'
 import { selectSkipRole, clearSkipRole } from '@/lib/auth/actions'
@@ -24,6 +25,7 @@ import type {
   NotificationCategory,
   User,
 } from './types'
+import type { AuthMode } from './runtime-config'
 
 interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   currentUser: User | null
@@ -104,7 +106,7 @@ const emptySnapshot: NotebookSnapshot = {
 interface StoreProps {
   children: ReactNode
   initialUser: User | null
-  authMode: 'skip' | 'clerk'
+  authMode: AuthMode
 }
 
 export function StoreProvider(props: StoreProps) {
@@ -133,6 +135,7 @@ function ApplicationStoreProvider({ children: nodes, initialUser, authMode }: St
   const snapshot = query.data ?? emptySnapshot
 
   const login = async (role: Role) => {
+    if (authMode !== 'skip') throw new Error('Development authentication is disabled')
     const user = await selectSkipRole(role)
     client.clear()
     setCurrentUser(user)
@@ -145,9 +148,14 @@ function ApplicationStoreProvider({ children: nodes, initialUser, authMode }: St
       router.push('/sign-out')
       return
     }
+    if (authMode === 'authjs') {
+      client.clear()
+      setCurrentUser(null)
+      await authjsSignOut({ callbackUrl: '/' })
+      return
+    }
     const user = await clearSkipRole()
     setCurrentUser(user)
-    client.clear()
     router.replace('/')
     router.refresh()
   }

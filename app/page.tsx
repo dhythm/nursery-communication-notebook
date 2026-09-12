@@ -10,7 +10,11 @@ import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export default async function HomePage() {
   const { authMode } = getRuntimeConfig()
-  if (authMode === 'skip') return <LoginPage />
+  if (authMode !== 'clerk') {
+    const user = authMode === 'authjs' ? await getCurrentUser() : null
+    if (user) redirect(facilityPagePath(user.facilitySlug, user.role))
+    return <LoginPage authMode={authMode} />
+  }
 
   const user = await getCurrentUser()
   if (user) redirect(facilityPagePath(user.facilitySlug, user.role))

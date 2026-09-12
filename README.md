@@ -50,7 +50,7 @@ pnpm db:down        # コンテナー停止・削除（ボリュームは保持�
 | 設定                      | 値・用途                                              |
 | ------------------------- | ----------------------------------------------------- |
 | `APP_ENV`                 | `development` / `test`。省略時は安全側の `production` |
-| `AUTH_MODE`               | 開発用 `skip` / 本番用 `clerk`                        |
+| `AUTH_MODE`               | 開発用 `skip` / 本番用 `clerk` または `authjs`        |
 | `DATABASE_PROVIDER`       | `postgres` / `pglite`                                 |
 | `DATABASE_URL`            | PostgreSQL接続文字列。PGliteでは使用しない            |
 | `PGLITE_DATA_DIR`         | 既定 `.data/pglite`。`memory://` は単体テスト専用     |
@@ -63,9 +63,8 @@ pnpm db:down        # コンテナー停止・削除（ボリュームは保持�
 `dev` / `dev:agent` は認証・DB種別を明示的に切り替えるので、既存の `.env.local` があってもDB種別が混ざりません。
 `DATABASE_URL` と `PGLITE_DATA_DIR` は指定値を優先します。Docker以外のDBへ誤って接続しないよう、ローカル用の接続先を使ってください。
 
-認証スキップは開発・テスト専用です。`APP_ENV=production` または `VERCEL_ENV=production` ではサーバー側で拒否します。本番は `AUTH_MODE=clerk` とし、`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` と `CLERK_SECRET_KEY` を設定します。
+認証スキップは開発・テスト専用です。`APP_ENV=production` または `VERCEL_ENV=production` ではサーバー側で拒否します。本番は `.env.production.example` を基に `AUTH_MODE=clerk` または `AUTH_MODE=authjs` を選択してください。
 `NODE_ENV=production` はNext.jsのビルドモードなので、`APP_ENV=development` を明示したローカル検証は可能です。
-Clerkでメールアドレスの確認、パスワード管理、セッション管理を行います。先生画面の「運用管理」で利用者を先に登録し、同じ確認済みメールアドレスでClerkへ登録すると、初回ログイン時に園・ロールへ紐づきます。園に登録されていないメールアドレスでは園データへアクセスできません。
 
 本番DBの初期化ではデモデータを投入しません。マイグレーション後、最初の園と管理者だけを環境値で登録します。同じ園slug・管理者メールでの再実行は安全です。以後の利用者・園児・クラスは管理者が「運用管理」から登録します。
 
@@ -78,7 +77,7 @@ BOOTSTRAP_MANAGER_EMAIL=director@example.com \
 pnpm db:bootstrap
 ```
 
-初回は保護者として認証されます。トップページから保護者／保育士を切り替えられ、選択はHttpOnly Cookieに保存します。
+`AUTH_MODE=skip` では初回は保護者として認証されます。トップページから保護者／保育士を切り替えられ、選択はHttpOnly Cookieに保存します。
 ログアウトすると選択を解除してトップページへ戻り、既定の保護者に戻ります。
 サーバーで画面・APIのロールと施設・園児へのアクセスを確認しています。
 
@@ -105,7 +104,50 @@ slugは表示上の園コンテキストであり、それ自体を認可情報�
 連絡帳・メッセージ・お知らせ・資料・写真・行事・園児情報は保存され、再読み込み後も保持されます。資料と写真は実体を非公開ストレージへ保存し、所属園・クラス・園児の権限確認後に配信します。本番環境ではローカルディスクを拒否し、暗号化したS3またはS3互換の非公開バケットを使用します。
 
 認証の交換境界は `lib/auth/provider.ts`、DBドライバーの交換境界は `lib/db/index.ts`、データ操作は `lib/repository.ts` に分離しています。
-本番認証はClerkの利用者IDと、DB上の利用者・施設所属をサーバーで対応付けます。PostgreSQLはNeonなどのマネージド接続へ置換でき、画面側はDBドライバーに依存しません。
+業務画面とAPIの認可処理は、認証SDKやDBドライバーの違いを意識しません。
+
+## 本番認証の選択
+
+ホスティングする環境の `AUTH_MODE` で認証方式を選択します。利用者がログイン画面で方式を選ぶ構成ではないため、1つのデプロイでは1方式だけが有効です。どちらの方式でも、認証後にアプリ内部の `app_user.id` を解決し、施設・ロール・園児の認可は共通のDBテーブルで判定します。
+
+### Clerk
+
+```dotenv
+APP_ENV=production
+AUTH_MODE=clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+DATABASE_PROVIDER=postgres
+DATABASE_URL=postgresql://...
+FILE_STORAGE_PROVIDER=s3
+S3_BUCKET=...
+S3_REGION=ap-northeast-1
+```
+
+Clerk Dashboardでメールアドレスとパスワードによるサインインを有効にします。アプリの「運用管理」で事前登録した利用者と、Clerkで検証済みのプライマリメールアドレスが初回ログイン時に一致すると、Clerk user IDが内部利用者へ紐付きます。公開サインアップを許可するかどうかはClerk Dashboardで運用に合わせて設定してください。アプリに未登録のメールアドレスでは園のデータへアクセスできません。
+
+### Auth.js（NextAuth）
+
+```dotenv
+APP_ENV=production
+AUTH_MODE=authjs
+AUTH_SECRET=十分に長いランダム値
+DATABASE_PROVIDER=postgres
+DATABASE_URL=postgresql://...
+FILE_STORAGE_PROVIDER=s3
+S3_BUCKET=...
+S3_REGION=ap-northeast-1
+```
+
+`AUTH_SECRET` は `npx auth secret` で生成できます。Auth.jsではメールアドレスをログインIDとして使います。Credentials providerはパスワードを自動保存しないため、このアプリはNode.jsのscryptでハッシュ化して `user_password` に保存します。利用者を「運用管理」で作成した後、ホスト管理者が次のコマンドで初期パスワードを設定してください。
+
+```sh
+pnpm auth:set-password user@example.com
+```
+
+パスワードは12〜256文字で、5回連続して失敗すると15分間ロックされます。現時点ではメール送信による招待・パスワード再設定画面は含まれないため、パスワード設定はホスト管理者がCLIで行います。
+
+Clerkの利用者IDは `app_user.external_subject` に紐付け、Auth.jsのJWTセッションには内部利用者IDだけを保存します。
 
 園、利用者、所属、クラス、園児、保護者紐づけ、職員担当、連絡帳、お知らせ、予定、メッセージ、アプリ内通知、監査、ファイルは正規化テーブルで管理します。通知はアプリ内の新着・既読・通知設定に限定し、メールやプッシュ通知は送信しません。旧 `app_record` のメッセージはマイグレーション時に移行され、実行時の読み書きには使用しません。
 先生画面の「運用管理」からクラス・利用者・園児の追加、進級、退園、職員担当、保護者紐づけを変更でき、変更内容は操作履歴へ残ります。

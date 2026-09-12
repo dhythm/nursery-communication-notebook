@@ -517,6 +517,21 @@ const migrations = [
         );
     `,
   },
+  {
+    version: 15,
+    sql: `
+      UPDATE app_user SET email = lower(email);
+      CREATE UNIQUE INDEX app_user_email_canonical ON app_user(lower(email));
+
+      CREATE TABLE user_password (
+        user_id text PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+        password_hash text NOT NULL,
+        failed_attempt_count integer NOT NULL DEFAULT 0 CHECK (failed_attempt_count >= 0),
+        locked_until timestamptz,
+        password_changed_at timestamptz NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {
