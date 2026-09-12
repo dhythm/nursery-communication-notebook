@@ -88,8 +88,7 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
         scheduledDate: kind === 'general' ? undefined : scheduledDate,
         scheduledTime: kind === 'late' || kind === 'pickup' ? scheduledTime : undefined,
       })
-      if (draftKey && typeof window !== 'undefined')
-        window.localStorage.removeItem(draftKey)
+      if (draftKey && typeof window !== 'undefined') window.localStorage.removeItem(draftKey)
       setText('')
       setKind('general')
       setScheduledTime('')
