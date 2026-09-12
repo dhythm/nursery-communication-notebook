@@ -32,7 +32,7 @@ Dockerを起動してから実行します。
 ```sh
 pnpm install --frozen-lockfile
 pnpm db:up
-pnpm dev:local
+pnpm dev
 ```
 
 PostgreSQL 17を `127.0.0.1:54329` に起動します。認証スキップ、初期化・デモデータ投入は自動で有効になります。
@@ -43,7 +43,7 @@ pnpm db:setup:local  # DB初期化のみ
 pnpm db:down        # コンテナー停止・削除（ボリュームは保持）
 ```
 
-通常の `pnpm dev` を使用する場合は `.env.example` を `.env.local` にコピーし、`pnpm db:up` → `pnpm db:setup` → `pnpm dev` の順で実行します。
+`pnpm dev` はDocker PostgreSQL、`pnpm dev:agent` はPGliteを使います。どちらも認証スキップとDB初期化を自動で実行します。
 
 ## 環境設定
 
@@ -56,7 +56,7 @@ pnpm db:down        # コンテナー停止・削除（ボリュームは保持�
 | `PGLITE_DATA_DIR`   | 既定 `.data/pglite`。`memory://` は単体テスト専用     |
 
 `.env.example` はDocker用、`.env.agent.example` はPGlite用の設定例です。
-`dev:agent` / `dev:local` は認証・DB種別を明示的に切り替えるので、既存の `.env.local` があってもDB種別が混ざりません。
+`dev` / `dev:agent` は認証・DB種別を明示的に切り替えるので、既存の `.env.local` があってもDB種別が混ざりません。
 `DATABASE_URL` と `PGLITE_DATA_DIR` は指定値を優先します。Docker以外のDBへ誤って接続しないよう、ローカル用の接続先を使ってください。
 
 認証スキップは開発・テスト専用です。`APP_ENV=production` または `VERCEL_ENV=production` ではサーバー側で拒否します。

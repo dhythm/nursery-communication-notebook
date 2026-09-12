@@ -21,7 +21,6 @@
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm knip && pnpm test",
     "check:all": "pnpm check && pnpm test:e2e && pnpm build:agent",
     "dev:agent": "node --import tsx scripts/environment.ts agent dev",
-    "dev:local": "node --import tsx scripts/environment.ts local dev",
     "build:agent": "node --import tsx scripts/environment.ts agent build",
     "start:agent": "node --import tsx scripts/environment.ts agent start",
     "db:up": "docker compose up -d --wait",
