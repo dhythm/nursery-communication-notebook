@@ -81,11 +81,20 @@ export function notebookMutation(client: QueryClient, scope: NotebookQueryScope)
       })
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: string } | null
-        throw new Error(body?.error ?? '保存できませんでした。もう一度お試しください。')
+        const error = new Error(
+          body?.error ?? '保存できませんでした。もう一度お試しください。',
+        ) as Error & { status: number }
+        error.status = response.status
+        throw error
       }
     },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: notebookQuery(scope).queryKey })
+    },
+    onError: async (error: Error & { status?: number }) => {
+      if (error.status === 409) {
+        await client.invalidateQueries({ queryKey: notebookQuery(scope).queryKey })
+      }
     },
   }
 }

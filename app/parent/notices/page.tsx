@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Pin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
 import { formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import type { Notice } from '@/lib/types'
@@ -29,7 +30,7 @@ const categoryColor: Record<Notice['category'], string> = {
 export default function ParentNotices() {
   const { notices, markNoticeRead, confirmNotice } = useStore()
   const [filter, setFilter] = useState<(typeof categories)[number]>('すべて')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const list = useMemo(() => {
     const filtered = filter === 'すべて' ? notices : notices.filter((n) => n.category === filter)
@@ -38,6 +39,12 @@ export default function ParentNotices() {
       return b.date.localeCompare(a.date)
     })
   }, [notices, filter])
+  const selectedNotice = notices.find((notice) => notice.id === selectedId)
+
+  const openNotice = (notice: Notice) => {
+    setSelectedId(notice.id)
+    if (!notice.readAt) void markNoticeRead(notice.id)
+  }
 
   return (
     <div className="space-y-4 p-4 pb-8">
@@ -85,35 +92,74 @@ export default function ParentNotices() {
               </span>
             </div>
             <h2 className="font-display text-base font-bold">{notice.title}</h2>
-            <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-              {notice.body}
+            <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">
+              {summarizeBody(notice.body)}
             </p>
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
                 {notice.readAt ? '既読' : '未読'}
               </span>
-              {expandedId !== notice.id ? (
-                <Button
-                  variant="outline"
-                  className="h-9 rounded-xl"
-                  onClick={() => {
-                    setExpandedId(notice.id)
-                    if (!notice.readAt) void markNoticeRead(notice.id)
-                  }}
-                >
-                  詳細を確認
-                </Button>
-              ) : notice.requiresConfirmation && !notice.confirmedAt ? (
-                <Button className="h-9 rounded-xl" onClick={() => void confirmNotice(notice.id)}>
-                  確認しました
-                </Button>
-              ) : notice.requiresConfirmation ? (
-                <Badge className="bg-primary text-primary-foreground">確認済み</Badge>
-              ) : null}
+              <Button
+                variant="outline"
+                className="h-9 rounded-xl"
+                onClick={() => openNotice(notice)}
+              >
+                詳細を確認
+              </Button>
             </div>
           </article>
         ))}
       </div>
+
+      <Modal
+        open={selectedNotice !== undefined}
+        onClose={() => setSelectedId(null)}
+        title={selectedNotice?.title ?? 'お知らせ詳細'}
+        footer={
+          selectedNotice?.requiresConfirmation && !selectedNotice.confirmedAt ? (
+            <Button
+              className="h-10 w-full rounded-xl"
+              onClick={() => void confirmNotice(selectedNotice.id)}
+            >
+              確認しました
+            </Button>
+          ) : undefined
+        }
+      >
+        {selectedNotice && (
+          <div className="space-y-5">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">分類</dt>
+              <dd>
+                <Badge
+                  className="text-white"
+                  style={{ backgroundColor: categoryColor[selectedNotice.category] }}
+                >
+                  {selectedNotice.category}
+                </Badge>
+              </dd>
+              <dt className="text-muted-foreground">日付</dt>
+              <dd>{formatDate(selectedNotice.date)}</dd>
+              <dt className="text-muted-foreground">既読状態</dt>
+              <dd>{selectedNotice.readAt ? '既読' : '未読'}</dd>
+              {selectedNotice.requiresConfirmation && (
+                <>
+                  <dt className="text-muted-foreground">確認状態</dt>
+                  <dd>{selectedNotice.confirmedAt ? '確認済み' : '未確認'}</dd>
+                </>
+              )}
+            </dl>
+            <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+              {selectedNotice.body}
+            </p>
+          </div>
+        )}
+      </Modal>
     </div>
   )
+}
+
+function summarizeBody(body: string) {
+  const normalized = body.replace(/\s+/g, ' ').trim()
+  return normalized.length > 64 ? `${normalized.slice(0, 64)}…` : normalized
 }

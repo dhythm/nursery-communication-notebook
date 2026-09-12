@@ -20,7 +20,7 @@ describe('notebook repository', () => {
     const snapshot = await readNotebook(database, parent)
     expect(snapshot.children.map((child) => child.id).sort()).toEqual(['c1', 'c2'])
     expect(snapshot.facilities.map((facility) => facility.id)).toEqual(['f1'])
-    expect((await readNotebook(database, teacher)).children).toHaveLength(4)
+    expect((await readNotebook(database, teacher)).children).toHaveLength(60)
   })
   it('seeds normalized users, classes, memberships, and relationships idempotently', async () => {
     await seedNotebook(database)
@@ -28,10 +28,25 @@ describe('notebook repository', () => {
       { id: 'u1' },
       { id: 'u2' },
     ])
-    expect((await database.query('SELECT id FROM nursery_class ORDER BY id')).rows).toEqual([
-      { id: 'class-f1-niji' },
-      { id: 'class-f1-sora' },
-      { id: 'class-f1-tsuki' },
+    expect((await database.query('SELECT id FROM nursery_class ORDER BY id')).rows).toHaveLength(6)
+    expect(
+      (
+        await database.query(
+          `SELECT nursery_class.name, COUNT(*)::integer AS child_count
+           FROM child_enrollment
+           JOIN nursery_class ON nursery_class.id = child_enrollment.class_id
+           WHERE child_enrollment.ended_on IS NULL
+           GROUP BY nursery_class.name
+           ORDER BY nursery_class.name`,
+        )
+      ).rows,
+    ).toEqual([
+      { name: 'うみ組（0歳児）', child_count: 6 },
+      { name: 'かぜ組（3歳児）', child_count: 12 },
+      { name: 'そら組（4歳児）', child_count: 12 },
+      { name: 'つき組（2歳児）', child_count: 10 },
+      { name: 'にじ組（5歳児）', child_count: 12 },
+      { name: 'ほし組（1歳児）', child_count: 8 },
     ])
     expect(
       (
@@ -73,6 +88,128 @@ describe('notebook repository', () => {
         )
       ).rows,
     ).toEqual([{ sender_user_id: parent.id, command_id: 'message-once' }])
+  })
+  it('shares one message draft per child within a facility and hides it from parents', async () => {
+    await mutateNotebook(database, teacher, {
+      commandId: 'save-shared-message-draft',
+      type: 'saveMessageDraft',
+      payload: { childId: 'c1', text: '引き継ぎ中の下書き', expectedVersion: 0 },
+    })
+
+    const draft = (await readNotebook(database, teacher)).messageDrafts.find(
+      (candidate) => candidate.childId === 'c1',
+    )
+    expect(draft).toMatchObject({
+      facilityId: teacher.facilityId,
+      childId: 'c1',
+      text: '引き継ぎ中の下書き',
+      version: 1,
+      updatedByName: teacher.name,
+    })
+    expect((await readNotebook(database, parent)).messageDrafts).toEqual([])
+
+    const colleague = { ...teacher, id: 'draft-colleague', name: '下書き 先生' }
+    await database.query(`INSERT INTO app_user (id, name, email) VALUES ($1, $2, $3)`, [
+      colleague.id,
+      colleague.name,
+      'draft-colleague@example.com',
+    ])
+    await database.query(
+      `INSERT INTO facility_membership
+       (facility_id, user_id, role, access_scope)
+       VALUES ($1, $2, 'teacher', 'facility')`,
+      [teacher.facilityId, colleague.id],
+    )
+    expect((await readNotebook(database, colleague)).messageDrafts).toContainEqual(draft)
+
+    const otherFacilityTeacher = {
+      ...teacher,
+      id: 'other-facility-draft-teacher',
+      name: '別園 先生',
+      email: 'draft-teacher@himawari.example.com',
+      facilityId: 'f2',
+      facilitySlug: 'himawari',
+    }
+    await database.query(`INSERT INTO app_user (id, name, email) VALUES ($1, $2, $3)`, [
+      otherFacilityTeacher.id,
+      otherFacilityTeacher.name,
+      otherFacilityTeacher.email,
+    ])
+    await database.query(
+      `INSERT INTO facility_membership
+       (facility_id, user_id, role, access_scope)
+       VALUES ($1, $2, 'teacher', 'facility')`,
+      [otherFacilityTeacher.facilityId, otherFacilityTeacher.id],
+    )
+    expect((await readNotebook(database, otherFacilityTeacher)).messageDrafts).toEqual([])
+    await expect(
+      mutateNotebook(database, otherFacilityTeacher, {
+        commandId: 'other-facility-save-message-draft',
+        type: 'saveMessageDraft',
+        payload: { childId: 'c1', text: '別園の下書き', expectedVersion: 0 },
+      }),
+    ).rejects.toThrow('Forbidden')
+
+    await expect(
+      mutateNotebook(database, colleague, {
+        commandId: 'conflicting-message-draft',
+        type: 'saveMessageDraft',
+        payload: { childId: 'c1', text: '古い版からの上書き', expectedVersion: 0 },
+      }),
+    ).rejects.toThrow('Conflict')
+
+    await mutateNotebook(database, teacher, {
+      commandId: 'save-shared-message-draft',
+      type: 'saveMessageDraft',
+      payload: { childId: 'c1', text: '引き継ぎ中の下書き', expectedVersion: 0 },
+    })
+    expect((await readNotebook(database, teacher)).messageDrafts).toContainEqual(draft)
+  })
+
+  it('deletes a shared message draft when cleared or successfully sent', async () => {
+    await mutateNotebook(database, teacher, {
+      commandId: 'create-clearable-draft',
+      type: 'saveMessageDraft',
+      payload: { childId: 'c2', text: '削除する下書き', expectedVersion: 0 },
+    })
+    const version = (await readNotebook(database, teacher)).messageDrafts.find(
+      (draft) => draft.childId === 'c2',
+    )!.version
+    await mutateNotebook(database, teacher, {
+      commandId: 'clear-message-draft',
+      type: 'saveMessageDraft',
+      payload: { childId: 'c2', text: '', expectedVersion: version },
+    })
+    await mutateNotebook(database, teacher, {
+      commandId: 'clear-message-draft',
+      type: 'saveMessageDraft',
+      payload: { childId: 'c2', text: '', expectedVersion: version },
+    })
+    expect((await readNotebook(database, teacher)).messageDrafts).toEqual(
+      expect.not.arrayContaining([expect.objectContaining({ childId: 'c2' })]),
+    )
+
+    await mutateNotebook(database, teacher, {
+      commandId: 'create-sent-draft',
+      type: 'saveMessageDraft',
+      payload: { childId: 'c3', text: '送信する下書き', expectedVersion: 0 },
+    })
+    await mutateNotebook(database, teacher, {
+      commandId: 'send-drafted-message',
+      type: 'addMessage',
+      payload: { childId: 'c3', text: '送信する下書き' },
+    })
+    expect((await readNotebook(database, teacher)).messageDrafts).toEqual(
+      expect.not.arrayContaining([expect.objectContaining({ childId: 'c3' })]),
+    )
+
+    await expect(
+      mutateNotebook(database, parent, {
+        commandId: 'parent-save-message-draft',
+        type: 'saveMessageDraft',
+        payload: { childId: 'c1', text: '保護者の下書き', expectedVersion: 0 },
+      }),
+    ).rejects.toThrow('Forbidden')
   })
   it('shares message templates within a facility and limits changes to teachers', async () => {
     const initialTemplates = (await readNotebook(database, teacher)).messageTemplates
@@ -632,7 +769,7 @@ describe('notebook repository', () => {
     await mutateNotebook(database, teacher, {
       commandId: 'create-class-management',
       type: 'createClass',
-      payload: { name: 'ほし組（1歳児）', schoolYear: 2026 },
+      payload: { name: '一時クラス（1歳児）', schoolYear: 2026 },
     })
     await mutateNotebook(database, teacher, {
       commandId: 'create-guardian-management',
@@ -650,7 +787,9 @@ describe('notebook repository', () => {
       },
     })
     let management = await readNotebook(database, teacher)
-    const nurseryClass = management.nurseryClasses.find((item) => item.name === 'ほし組（1歳児）')!
+    const nurseryClass = management.nurseryClasses.find(
+      (item) => item.name === '一時クラス（1歳児）',
+    )!
     const guardian = management.members.find((member) => member.email === 'new-parent@example.com')!
     const staff = management.members.find((member) => member.email === 'new-teacher@example.com')!
     await mutateNotebook(database, teacher, {

@@ -272,6 +272,7 @@ export async function readNotebook(
     notebookEntries: [],
     notices: [],
     messages: [],
+    messageDrafts: [],
     messageTemplates: [],
     sharedFiles: [],
     calendarEvents: [],
@@ -342,6 +343,21 @@ export async function readNotebook(
         )
       ).rows.reverse()
     : []
+  snapshot.messageDrafts =
+    hasMembership && user.role === 'teacher'
+      ? (
+          await database.query<NotebookSnapshot['messageDrafts'][number]>(
+            `SELECT draft.facility_id AS "facilityId", draft.child_id AS "childId",
+               draft.body AS text, draft.version, draft.updated_at::text AS "updatedAt",
+               updater.name AS "updatedByName"
+             FROM message_draft draft
+             JOIN app_user updater ON updater.id = draft.updated_by_user_id
+             WHERE draft.facility_id = $1 AND draft.child_id = ANY($2::text[])
+             ORDER BY draft.updated_at, draft.child_id`,
+            [user.facilityId, accessibleChildIds],
+          )
+        ).rows
+      : []
   snapshot.messageTemplates =
     hasMembership && user.role === 'teacher'
       ? (
@@ -649,6 +665,17 @@ const commandSchema = z.discriminatedUnion('type', [
         kind: z.enum(['general', 'absence', 'late', 'pickup']).optional(),
         scheduledDate: date.optional(),
         scheduledTime: time.optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    commandId,
+    type: z.literal('saveMessageDraft'),
+    payload: z
+      .object({
+        childId: id,
+        text: z.string().max(5000),
+        expectedVersion: z.number().int().nonnegative(),
       })
       .strict(),
   }),
@@ -976,6 +1003,84 @@ export async function mutateNotebook(
 ) {
   const command = commandSchema.parse(input)
   const snapshot = await readNotebook(database, user)
+  if (command.type === 'saveMessageDraft') {
+    if (
+      user.role !== 'teacher' ||
+      snapshot.facilities.length !== 1 ||
+      !snapshot.children.some((child) => child.id === command.payload.childId)
+    )
+      throw new Error('Forbidden')
+    await database.transaction(async (transaction) => {
+      if (!(await acceptCommand(transaction, user.id, command.commandId))) return
+      const existing = await transaction.query<{ text: string; version: number }>(
+        `SELECT body AS text, version FROM message_draft
+         WHERE facility_id = $1 AND child_id = $2 FOR UPDATE`,
+        [user.facilityId, command.payload.childId],
+      )
+      const previous = existing.rows[0]
+      if ((previous?.version ?? 0) !== command.payload.expectedVersion) throw new Error('Conflict')
+
+      if (command.payload.text.length === 0) {
+        if (!previous) return
+        await transaction.query(
+          `DELETE FROM message_draft WHERE facility_id = $1 AND child_id = $2`,
+          [user.facilityId, command.payload.childId],
+        )
+        await writeAudit(
+          transaction,
+          user,
+          command.commandId,
+          'deleted',
+          'message_draft',
+          command.payload.childId,
+          previous,
+          null,
+          now,
+        )
+        return
+      }
+
+      if (previous) {
+        await transaction.query(
+          `UPDATE message_draft
+           SET body = $3, version = version + 1, updated_by_user_id = $4, updated_at = $5
+           WHERE facility_id = $1 AND child_id = $2`,
+          [
+            user.facilityId,
+            command.payload.childId,
+            command.payload.text,
+            user.id,
+            now.toISOString(),
+          ],
+        )
+      } else {
+        await transaction.query(
+          `INSERT INTO message_draft
+           (facility_id, child_id, body, updated_by_user_id, updated_at)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            user.facilityId,
+            command.payload.childId,
+            command.payload.text,
+            user.id,
+            now.toISOString(),
+          ],
+        )
+      }
+      await writeAudit(
+        transaction,
+        user,
+        command.commandId,
+        previous ? 'updated' : 'created',
+        'message_draft',
+        command.payload.childId,
+        previous ?? null,
+        { text: command.payload.text, version: command.payload.expectedVersion + 1 },
+        now,
+      )
+    })
+    return
+  }
   if (command.type === 'createMessageTemplate') {
     if (user.role !== 'teacher' || snapshot.facilities.length !== 1) throw new Error('Forbidden')
     const templateId = randomUUID()
@@ -1073,6 +1178,12 @@ export async function mutateNotebook(
           command.payload.scheduledTime ?? null,
         ],
       )
+      if (user.role === 'teacher') {
+        await transaction.query(
+          `DELETE FROM message_draft WHERE facility_id = $1 AND child_id = $2`,
+          [user.facilityId, command.payload.childId],
+        )
+      }
       await writeAudit(
         transaction,
         user,

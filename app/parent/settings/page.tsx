@@ -65,7 +65,11 @@ export default function ParentSettings() {
         <h2 className="px-1 font-display text-sm font-bold text-muted-foreground">お子さま</h2>
         <Card className="divide-y divide-border p-0">
           {myChildren.map((child) => (
-            <div key={child.id} className="flex items-center gap-3 p-4">
+            <Link
+              key={child.id}
+              href={facilityPath(`/parent/settings/children/${child.id}`)}
+              className="flex items-center gap-3 p-4 transition-colors hover:bg-muted/50"
+            >
               <ChildAvatar name={child.name} color={child.avatarColor} size={44} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">{child.name}</p>
@@ -74,7 +78,7 @@ export default function ParentSettings() {
                 </p>
               </div>
               <ChevronRight className="size-4 text-muted-foreground" />
-            </div>
+            </Link>
           ))}
         </Card>
       </section>
@@ -114,7 +118,7 @@ export default function ParentSettings() {
           <LinkRow
             href={facilityPath('/parent/settings/help')}
             icon={<HelpCircle className="size-4" />}
-            label="ヘルプ・お問い合わせ"
+            label="ヘルプ"
           />
           <LinkRow
             href={facilityPath('/parent/settings/terms')}

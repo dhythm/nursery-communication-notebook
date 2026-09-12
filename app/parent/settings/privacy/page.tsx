@@ -1,3 +1,5 @@
+import { SettingsBackLink } from '@/components/parent/settings-back-link'
+
 export default function PrivacyPage() {
   return (
     <Policy title="プライバシーとセキュリティ">
@@ -9,6 +11,7 @@ export default function PrivacyPage() {
 function Policy({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <article className="space-y-4 p-4">
+      <SettingsBackLink />
       <h1 className="font-display text-xl font-bold">{title}</h1>
       <p className="text-sm leading-7">{children}</p>
     </article>
