@@ -39,13 +39,14 @@ async function main() {
         force: false,
         errorOnExist: true,
       })
-    await cp(resolve(config.fileStorageDir), `${target}.files`, {
-      recursive: true,
-      force: false,
-      errorOnExist: true,
-    }).catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    })
+    if (config.fileStorageProvider === 'local')
+      await cp(resolve(config.fileStorageDir), `${target}.files`, {
+        recursive: true,
+        force: false,
+        errorOnExist: true,
+      }).catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      })
     return
   }
   if (command === 'restore') {
@@ -66,15 +67,17 @@ async function main() {
       if (!(await isEmpty(target))) throw new Error('Restore target directory must be empty')
       await cp(source, target, { recursive: true, force: false, errorOnExist: true })
     }
-    const fileTarget = resolve(config.fileStorageDir)
-    if (!(await isEmpty(fileTarget))) throw new Error('Restore file directory must be empty')
-    await cp(`${source}.files`, fileTarget, {
-      recursive: true,
-      force: false,
-      errorOnExist: true,
-    }).catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    })
+    if (config.fileStorageProvider === 'local') {
+      const fileTarget = resolve(config.fileStorageDir)
+      if (!(await isEmpty(fileTarget))) throw new Error('Restore file directory must be empty')
+      await cp(`${source}.files`, fileTarget, {
+        recursive: true,
+        force: false,
+        errorOnExist: true,
+      }).catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      })
+    }
     return
   }
   if (command === 'retention') {

@@ -4,7 +4,11 @@ export interface RuntimeConfig {
   databaseProvider: 'postgres' | 'pglite'
   databaseUrl?: string
   pgliteDataDir: string
+  fileStorageProvider: 'local' | 's3'
   fileStorageDir: string
+  s3Bucket?: string
+  s3Region?: string
+  s3Endpoint?: string
 }
 
 /** Server configuration. No credentials or environment values are sent to the browser. */
@@ -47,12 +51,36 @@ export function getRuntimeConfig(
       throw new Error('DATABASE_URL must be a PostgreSQL connection URL')
     }
   }
+  const fileStorageProvider = environment.FILE_STORAGE_PROVIDER ?? 'local'
+  if (fileStorageProvider !== 'local' && fileStorageProvider !== 's3') {
+    throw new Error('FILE_STORAGE_PROVIDER must be local or s3')
+  }
+  if (production && fileStorageProvider !== 's3') {
+    throw new Error('S3 file storage is required in production')
+  }
+  const s3Bucket = environment.S3_BUCKET
+  const s3Region = environment.S3_REGION
+  if (fileStorageProvider === 's3' && (!s3Bucket || !s3Region)) {
+    throw new Error('S3_BUCKET and S3_REGION are required for S3 file storage')
+  }
+  const s3Endpoint = environment.S3_ENDPOINT
+  if (s3Endpoint) {
+    try {
+      new URL(s3Endpoint)
+    } catch {
+      throw new Error('S3_ENDPOINT must be a valid URL')
+    }
+  }
   return {
     appEnv,
     authMode,
     databaseProvider,
     databaseUrl: databaseProvider === 'postgres' ? databaseUrl : undefined,
     pgliteDataDir: environment.PGLITE_DATA_DIR || '.data/pglite',
+    fileStorageProvider,
     fileStorageDir: environment.FILE_STORAGE_DIR || '.data/files',
+    s3Bucket,
+    s3Region,
+    s3Endpoint,
   }
 }

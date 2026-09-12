@@ -48,6 +48,16 @@ describe('runtime configuration', () => {
   })
 
   it('allows production only with Clerk authentication and PostgreSQL', () => {
+    expect(() =>
+      getRuntimeConfig({
+        APP_ENV: 'production',
+        AUTH_MODE: 'clerk',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_example',
+        CLERK_SECRET_KEY: 'sk_live_example',
+        DATABASE_PROVIDER: 'postgres',
+        DATABASE_URL: 'postgresql://nursery:secret@db.example.com/nursery',
+      }),
+    ).toThrow(/S3/)
     expect(
       getRuntimeConfig({
         APP_ENV: 'production',
@@ -56,9 +66,17 @@ describe('runtime configuration', () => {
         CLERK_SECRET_KEY: 'sk_live_example',
         DATABASE_PROVIDER: 'postgres',
         DATABASE_URL: 'postgresql://nursery:secret@db.example.com/nursery',
-        FILE_STORAGE_DIR: '/data/files',
+        FILE_STORAGE_PROVIDER: 's3',
+        S3_BUCKET: 'nursery-production-files',
+        S3_REGION: 'ap-northeast-1',
       }),
-    ).toMatchObject({ appEnv: 'production', authMode: 'clerk', databaseProvider: 'postgres' })
+    ).toMatchObject({
+      appEnv: 'production',
+      authMode: 'clerk',
+      databaseProvider: 'postgres',
+      fileStorageProvider: 's3',
+      s3Bucket: 'nursery-production-files',
+    })
   })
 
   it('rejects invalid PostgreSQL URLs without exposing the secret', () => {

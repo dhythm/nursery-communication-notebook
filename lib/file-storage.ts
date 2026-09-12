@@ -1,5 +1,12 @@
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3'
+import type { RuntimeConfig } from './runtime-config'
 
 export interface FileStorage {
   put(key: string, bytes: Uint8Array): Promise<void>
@@ -35,6 +42,71 @@ export class LocalFileStorage implements FileStorage {
   async delete(key: string) {
     await rm(this.path(key), { force: true })
   }
+}
+
+type ObjectStorageCommand = PutObjectCommand | GetObjectCommand | DeleteObjectCommand
+type SendObjectStorageCommand = (command: ObjectStorageCommand) => Promise<unknown>
+
+export class S3FileStorage implements FileStorage {
+  private readonly sendCommand: SendObjectStorageCommand
+
+  constructor(
+    private readonly config: { bucket: string; region: string; endpoint?: string },
+    sendCommand?: SendObjectStorageCommand,
+  ) {
+    if (sendCommand) {
+      this.sendCommand = sendCommand
+      return
+    }
+    const client = new S3Client({
+      region: config.region,
+      endpoint: config.endpoint,
+      forcePathStyle: Boolean(config.endpoint),
+    })
+    this.sendCommand = (command) => client.send(command)
+  }
+
+  async put(key: string, bytes: Uint8Array) {
+    assertKey(key)
+    await this.sendCommand(
+      new PutObjectCommand({
+        Bucket: this.config.bucket,
+        Key: key,
+        Body: bytes,
+        ServerSideEncryption: 'AES256',
+      }),
+    )
+  }
+
+  async get(key: string) {
+    assertKey(key)
+    const response = (await this.sendCommand(
+      new GetObjectCommand({ Bucket: this.config.bucket, Key: key }),
+    )) as { Body?: { transformToByteArray(): Promise<Uint8Array | undefined> } }
+    const bytes = await response.Body?.transformToByteArray()
+    if (!bytes) throw new Error('FileNotFound')
+    return new Uint8Array(bytes)
+  }
+
+  async delete(key: string) {
+    assertKey(key)
+    await this.sendCommand(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }))
+  }
+}
+
+type FileStorageConfig = Pick<
+  RuntimeConfig,
+  'fileStorageProvider' | 'fileStorageDir' | 's3Bucket' | 's3Region' | 's3Endpoint'
+>
+
+export function createFileStorage(config: FileStorageConfig): FileStorage {
+  if (config.fileStorageProvider === 'local') return new LocalFileStorage(config.fileStorageDir)
+  if (!config.s3Bucket || !config.s3Region) throw new Error('S3 storage is not configured')
+  return new S3FileStorage({
+    bucket: config.s3Bucket,
+    region: config.s3Region,
+    endpoint: config.s3Endpoint,
+  })
 }
 
 export function detectUpload(bytes: Uint8Array, name: string) {

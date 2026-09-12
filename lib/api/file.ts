@@ -1,6 +1,6 @@
 import { getCurrentUser, getFacilityUser } from '@/lib/auth/server'
 import { getDatabase } from '@/lib/db'
-import { LocalFileStorage } from '@/lib/file-storage'
+import { createFileStorage } from '@/lib/file-storage'
 import { getSharedFile, uploadSharedFile } from '@/lib/file-repository'
 import { logError } from '@/lib/logger'
 import { getRuntimeConfig } from '@/lib/runtime-config'
@@ -27,7 +27,7 @@ export async function handleFileUpload(request: Request, facilitySlug: string) {
       return Response.json({ error: 'ファイルを選択してください。' }, { status: 400, headers })
     const id = await uploadSharedFile(
       await getDatabase(),
-      new LocalFileStorage(getRuntimeConfig().fileStorageDir),
+      createFileStorage(getRuntimeConfig()),
       user,
       {
         fileName: file.name,
@@ -79,9 +79,7 @@ export async function handleFileDownload(request: Request, facilitySlug: string,
   const metadata = await getSharedFile(await getDatabase(), user, id)
   if (!metadata) return new Response('Not found', { status: 404 })
   try {
-    const bytes = await new LocalFileStorage(getRuntimeConfig().fileStorageDir).get(
-      metadata.storage_key,
-    )
+    const bytes = await createFileStorage(getRuntimeConfig()).get(metadata.storage_key)
     const encodedName = encodeURIComponent(metadata.original_name)
       .replace(/[']/g, '%27')
       .replace(/\(/g, '%28')

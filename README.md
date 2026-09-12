@@ -47,14 +47,17 @@ pnpm db:down        # コンテナー停止・削除（ボリュームは保持�
 
 ## 環境設定
 
-| 設定                | 値・用途                                              |
-| ------------------- | ----------------------------------------------------- |
-| `APP_ENV`           | `development` / `test`。省略時は安全側の `production` |
-| `AUTH_MODE`         | 開発用 `skip` / 本番用 `clerk`                        |
-| `DATABASE_PROVIDER` | `postgres` / `pglite`                                 |
-| `DATABASE_URL`      | PostgreSQL接続文字列。PGliteでは使用しない            |
-| `PGLITE_DATA_DIR`   | 既定 `.data/pglite`。`memory://` は単体テスト専用     |
-| `FILE_STORAGE_DIR`  | 既定 `.data/files`。認可付き資料・写真の保存先        |
+| 設定                      | 値・用途                                              |
+| ------------------------- | ----------------------------------------------------- |
+| `APP_ENV`                 | `development` / `test`。省略時は安全側の `production` |
+| `AUTH_MODE`               | 開発用 `skip` / 本番用 `clerk`                        |
+| `DATABASE_PROVIDER`       | `postgres` / `pglite`                                 |
+| `DATABASE_URL`            | PostgreSQL接続文字列。PGliteでは使用しない            |
+| `PGLITE_DATA_DIR`         | 既定 `.data/pglite`。`memory://` は単体テスト専用     |
+| `FILE_STORAGE_PROVIDER`   | 開発用 `local` / 本番用 `s3`                          |
+| `FILE_STORAGE_DIR`        | `local` の保存先。既定 `.data/files`                  |
+| `S3_BUCKET` / `S3_REGION` | 本番の非公開バケットとリージョン                      |
+| `S3_ENDPOINT`             | S3互換サービスを使う場合だけ指定                      |
 
 `.env.example` はDocker用、`.env.agent.example` はPGlite用の設定例です。
 `dev` / `dev:agent` は認証・DB種別を明示的に切り替えるので、既存の `.env.local` があってもDB種別が混ざりません。
@@ -88,7 +91,7 @@ slugは表示上の園コンテキストであり、それ自体を認可情報�
 - 保存に失敗した場合は入力を保持してエラー表示します。
 - HTTPキャッシュは無効にし、認証付きデータはTanStack Queryのメモリ内だけでキャッシュします。
 
-連絡帳・メッセージ・お知らせ・資料・写真・行事・園児情報は保存され、再読み込み後も保持されます。資料と写真は実体を非公開ストレージへ保存し、所属園・クラス・園児の権限確認後に配信します。
+連絡帳・メッセージ・お知らせ・資料・写真・行事・園児情報は保存され、再読み込み後も保持されます。資料と写真は実体を非公開ストレージへ保存し、所属園・クラス・園児の権限確認後に配信します。本番環境ではローカルディスクを拒否し、暗号化したS3またはS3互換の非公開バケットを使用します。
 
 認証の交換境界は `lib/auth/provider.ts`、DBドライバーの交換境界は `lib/db/index.ts`、データ操作は `lib/repository.ts` に分離しています。
 本番認証はClerkの利用者IDと、DB上の利用者・施設所属をサーバーで対応付けます。PostgreSQLはNeonなどのマネージド接続へ置換でき、画面側はDBドライバーに依存しません。
