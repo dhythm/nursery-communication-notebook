@@ -1,6 +1,7 @@
 {
   "name": "nursery-communication-notebook",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "packageManager": "pnpm@10.28.1",
   "scripts": {

@@ -1,6 +1,7 @@
 # にじいろ連絡帳
 
 Next.js / React / TypeScript で作成した保育園向け連絡帳アプリです。
+MIT Licenseで公開しているオープンソースソフトウェアです。
 Node.js 24 LTS（22.12以上）、pnpm 10.28.1を使用します。
 
 ## アプリ画面
@@ -205,3 +206,7 @@ ESLintはNext.jsプラグインの対応範囲に合わせ9系を使っていま
 初回起動・ビルドでは既存のGoogle Fonts設定によるネットワークアクセスが必要です。
 
 参考: [PGlite](https://pglite.dev/docs/)、[node-postgres](https://node-postgres.com/features/queries)、[TanStack Query](https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation)。
+
+## ライセンス
+
+このプロジェクトは[MIT License](LICENSE)で公開しています。
