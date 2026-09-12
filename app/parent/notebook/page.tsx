@@ -14,6 +14,13 @@ export default function ParentNotebook() {
   const { currentUser, notebookEntries, withdrawNotebookEntry } = useStore()
   const { selectedChild } = useParent()
   const [editingEntry, setEditingEntry] = useState<NotebookEntry | 'new' | null>(null)
+  const myToday = notebookEntries.find(
+    (entry) =>
+      entry.childId === selectedChild?.id &&
+      entry.authorId === currentUser?.id &&
+      entry.date === todayInTimeZone() &&
+      entry.status !== 'withdrawn',
+  )
 
   const grouped = useMemo(() => {
     if (!selectedChild) return []
@@ -41,20 +48,12 @@ export default function ParentNotebook() {
           </p>
         </div>
         <Button
-          onClick={() =>
-            setEditingEntry(
-              notebookEntries.find(
-                (entry) =>
-                  entry.childId === selectedChild.id &&
-                  entry.authorId === currentUser?.id &&
-                  entry.date === todayInTimeZone(),
-              ) ?? 'new',
-            )
-          }
+          onClick={() => setEditingEntry(myToday ?? 'new')}
+          disabled={Boolean(myToday?.confirmedAt)}
           className="h-10 rounded-2xl font-bold"
         >
           <PencilLine className="size-4" />
-          記入
+          {myToday?.confirmedAt ? '園で確認済みです' : '記入'}
         </Button>
       </div>
 

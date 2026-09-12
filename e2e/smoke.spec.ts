@@ -71,6 +71,74 @@ test('a parent can edit and submit a notebook entry', async ({ page }) => {
   await expect(page.getByText(note, { exact: true })).toBeVisible()
 })
 
+test('a confirmed parent notebook is locked in the parent screen', async ({ page }) => {
+  await page.goto(`${parentPath}/notebook`)
+  await page
+    .getByRole('button', { name: /ひなた/ })
+    .first()
+    .click()
+  await page.getByRole('button', { name: /田中 あおい/ }).click()
+
+  const note = `園確認後ロック ${Date.now()}`
+  const created = await page.request.post('/api/nurseries/nijiiro/notebook', {
+    data: {
+      commandId: `lock-create-${Date.now()}`,
+      type: 'saveNotebookEntry',
+      payload: {
+        childId: 'c2',
+        mood: 'normal',
+        temperature: '36.7',
+        meals: '朝食を食べました',
+        nap: '',
+        toilet: '',
+        note,
+        eveningMeal: 'ご飯、みそ汁',
+        bedtime: '21:00',
+        eveningStool: 'normal',
+        eveningStoolCount: 1,
+        wakeTime: '06:30',
+        morningStool: 'none',
+        morningStoolCount: 0,
+        breakfast: 'トースト、果物',
+        temperatureMeasuredAt: '07:00',
+        condition: '元気です',
+        pickupPerson: 'mother',
+        pickupTime: '17:30',
+        status: 'published',
+      },
+    },
+  })
+  expect(created.status()).toBe(200)
+
+  await page.goto(`${parentPath}/settings`)
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'ログイン', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '保育士', exact: true }).click()
+  await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
+  await expect(page).toHaveURL(teacherPath)
+  await page.goto(`${teacherPath}/children`)
+  await page.getByRole('button', { name: /田中 あおい/ }).click()
+  const teacherEntry = page.getByRole('article').filter({ hasText: note })
+  await teacherEntry.getByRole('button', { name: '連絡帳を確認済みにする' }).click()
+  await expect(teacherEntry.getByText('園確認済み')).toBeVisible()
+
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'ログイン', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
+  await expect(page).toHaveURL(parentPath)
+  await page.goto(`${parentPath}/notebook`)
+  await page
+    .getByRole('button', { name: /ひなた/ })
+    .first()
+    .click()
+  await page.getByRole('button', { name: /田中 あおい/ }).click()
+  const parentEntry = page.getByRole('article').filter({ hasText: note })
+  await expect(parentEntry.getByText('園確認済み')).toBeVisible()
+  await expect(parentEntry.getByRole('button', { name: '編集' })).toHaveCount(0)
+  await expect(parentEntry.getByRole('button', { name: '送信取消' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '園で確認済みです' })).toBeDisabled()
+})
+
 test('a teacher can open child management and sign out', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '保育士', exact: true }).click()
