@@ -34,10 +34,10 @@ describe('PGlite database', () => {
     const database = await openDatabase()
     await migrateDatabase(database)
     await migrateDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 2, seeded: false })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 3, seeded: false })
     await seedDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 2, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 3, seeded: true })
     expect((await database.query('SELECT * FROM facility')).rows).toEqual([
       { id: 'sample-facility', name: 'サンプル保育園' },
     ])
@@ -89,6 +89,7 @@ describe('PGlite database', () => {
     expect((await database.query('SELECT version FROM schema_migration')).rows).toEqual([
       { version: 1 },
       { version: 2 },
+      { version: 3 },
     ])
   }, 20_000)
 
@@ -100,7 +101,7 @@ describe('PGlite database', () => {
     await seedDatabase(database)
     await database.close()
     const reopened = await openDatabase(directory)
-    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 2, seeded: true })
+    expect(await checkDatabase(reopened)).toEqual({ migrationVersion: 3, seeded: true })
   }, 20_000)
 
   it('creates missing parent directories for a persistent database', async () => {
@@ -109,7 +110,7 @@ describe('PGlite database', () => {
     const database = await openDatabase(join(directory, 'missing-parent', 'pglite'))
     await migrateDatabase(database)
     await seedDatabase(database)
-    expect(await checkDatabase(database)).toEqual({ migrationVersion: 2, seeded: true })
+    expect(await checkDatabase(database)).toEqual({ migrationVersion: 3, seeded: true })
   }, 20_000)
 
   it('fails readiness checks before migrations have run', async () => {

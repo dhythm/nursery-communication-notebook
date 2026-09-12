@@ -16,6 +16,7 @@ import type {
   Child,
   Message,
   NotebookEntry,
+  NotebookAction,
   NotebookSnapshot,
   Notice,
   Role,
@@ -28,12 +29,16 @@ interface StoreValue extends Omit<NotebookSnapshot, 'facilities'> {
   login: (role: Role) => Promise<void>
   logout: () => Promise<void>
   facilityName: (id: string) => string
-  addNotebookEntry: (entry: Omit<NotebookEntry, 'id'>) => Promise<void>
-  addMessage: (message: Omit<Message, 'id'>) => Promise<void>
-  addNotice: (notice: Omit<Notice, 'id'>) => Promise<void>
-  addFile: (file: Omit<SharedFile, 'id'>) => Promise<void>
+  addNotebookEntry: (
+    entry: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'>,
+  ) => Promise<void>
+  addMessage: (
+    message: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>,
+  ) => Promise<void>
+  addNotice: (notice: Omit<Notice, 'id' | 'date'>) => Promise<void>
+  addFile: (file: Omit<SharedFile, 'id' | 'date' | 'uploadedBy'>) => Promise<void>
   addEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>
-  updateChild: (id: string, patch: Partial<Child>) => Promise<void>
+  updateChild: (id: string, expectedVersion: number, patch: Partial<Child>) => Promise<void>
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
@@ -67,6 +72,8 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
   const router = useRouter()
   const query = useQuery({ ...notebookQuery(currentUser?.id ?? ''), enabled: currentUser !== null })
   const mutation = useMutation(notebookMutation(client, currentUser?.id ?? ''))
+  const mutate = (action: NotebookAction) =>
+    mutation.mutateAsync({ ...action, commandId: crypto.randomUUID() })
   const snapshot = query.data ?? emptySnapshot
 
   const login = async (role: Role) => {
@@ -88,13 +95,13 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
     login,
     logout,
     facilityName: (id) => snapshot.facilities.find((facility) => facility.id === id)?.name ?? '',
-    addNotebookEntry: (payload) => mutation.mutateAsync({ type: 'addNotebookEntry', payload }),
-    addMessage: (payload) => mutation.mutateAsync({ type: 'addMessage', payload }),
-    addNotice: (payload) => mutation.mutateAsync({ type: 'addNotice', payload }),
-    addFile: (payload) => mutation.mutateAsync({ type: 'addFile', payload }),
-    addEvent: (payload) => mutation.mutateAsync({ type: 'addEvent', payload }),
-    updateChild: (id, patch) =>
-      mutation.mutateAsync({ type: 'updateChild', payload: { id, patch } }),
+    addNotebookEntry: (payload) => mutate({ type: 'addNotebookEntry', payload }),
+    addMessage: (payload) => mutate({ type: 'addMessage', payload }),
+    addNotice: (payload) => mutate({ type: 'addNotice', payload }),
+    addFile: (payload) => mutate({ type: 'addFile', payload }),
+    addEvent: (payload) => mutate({ type: 'addEvent', payload }),
+    updateChild: (id, expectedVersion, patch) =>
+      mutate({ type: 'updateChild', payload: { id, expectedVersion, patch } }),
   }
 
   if (currentUser && query.isPending)

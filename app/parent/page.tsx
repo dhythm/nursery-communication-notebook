@@ -8,26 +8,34 @@ import { NotebookEntryCard } from '@/components/notebook-entry-card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChildAvatar } from '@/components/ui/child-avatar'
-import { ageFromBirthday, eventColor, formatDate, formatShortDate, moodConfig } from '@/lib/format'
+import {
+  ageFromBirthday,
+  calendarDateParts,
+  eventColor,
+  formatDate,
+  formatShortDate,
+  moodConfig,
+  todayInTimeZone,
+} from '@/lib/format'
 import { useParent } from '@/lib/parent-context'
 import { useStore } from '@/lib/store'
-
-const TODAY = '2026-09-12'
+import type { Child } from '@/lib/types'
 
 export default function ParentHome() {
   const { currentUser, notebookEntries, notices, calendarEvents } = useStore()
   const { selectedChild } = useParent()
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [entryChild, setEntryChild] = useState<Child | null>(null)
+  const today = todayInTimeZone()
 
   if (!selectedChild) return null
 
   const todayEntries = notebookEntries.filter(
-    (e) => e.childId === selectedChild.id && e.date === TODAY,
+    (e) => e.childId === selectedChild.id && e.date === today,
   )
   const teacherToday = todayEntries.find((e) => e.author === 'teacher')
   const latestEntry = notebookEntries.find((e) => e.childId === selectedChild.id)
   const upcoming = [...calendarEvents]
-    .filter((e) => e.date >= TODAY)
+    .filter((e) => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 3)
   const topNotices = notices.slice(0, 2)
@@ -36,7 +44,7 @@ export default function ParentHome() {
   return (
     <div className="space-y-6 p-4">
       <div className="pt-1">
-        <p className="text-sm text-muted-foreground">{formatDate(TODAY)}</p>
+        <p className="text-sm text-muted-foreground">{formatDate(today)}</p>
         <h1 className="font-display text-xl font-bold">こんにちは、{familyName}さん</h1>
       </div>
 
@@ -75,7 +83,7 @@ export default function ParentHome() {
       </section>
 
       <Button
-        onClick={() => setDialogOpen(true)}
+        onClick={() => setEntryChild(selectedChild)}
         className="h-14 w-full rounded-3xl text-base font-bold shadow-sm"
       >
         <PencilLine className="size-5" />
@@ -136,10 +144,10 @@ export default function ParentHome() {
                 style={{ backgroundColor: eventColor[event.type] }}
               >
                 <span className="text-[0.6rem] font-semibold leading-none">
-                  {new Date(event.date).getMonth() + 1}月
+                  {calendarDateParts(event.date).month}月
                 </span>
                 <span className="text-base font-bold leading-tight">
-                  {new Date(event.date).getDate()}
+                  {calendarDateParts(event.date).day}
                 </span>
               </div>
               <div className="min-w-0 flex-1">
@@ -155,7 +163,7 @@ export default function ParentHome() {
         </div>
       </section>
 
-      <EntryDialog open={dialogOpen} onClose={() => setDialogOpen(false)} child={selectedChild} />
+      {entryChild && <EntryDialog open onClose={() => setEntryChild(null)} child={entryChild} />}
     </div>
   )
 }

@@ -7,24 +7,23 @@ import { PageTitle } from '@/components/teacher/page-title'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { ChildAvatar } from '@/components/ui/child-avatar'
-import { eventColor, formatDate, formatTime, moodConfig } from '@/lib/format'
+import { eventColor, formatDate, formatTime, moodConfig, todayInTimeZone } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-const TODAY = '2026-09-12'
-
 export default function TeacherDashboard() {
   const { currentUser, children, notebookEntries, messages, calendarEvents } = useStore()
+  const today = todayInTimeZone()
 
   const myChildren = useMemo(
     () => children.filter((c) => c.facilityId === currentUser?.facilityId),
     [children, currentUser],
   )
   const todayTeacherEntries = notebookEntries.filter(
-    (e) => e.date === TODAY && e.author === 'teacher',
+    (e) => e.date === today && e.author === 'teacher',
   )
   const todayEvents = calendarEvents
-    .filter((e) => e.date === TODAY)
+    .filter((e) => e.date === today)
     .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
   const recentMessages = [...messages].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 4)
   const parentMsgCount = messages.filter((m) => m.sender === 'parent').length
@@ -62,7 +61,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
-      <PageTitle title="ダッシュボード" subtitle={formatDate(TODAY)} />
+      <PageTitle title="ダッシュボード" subtitle={formatDate(today)} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => {

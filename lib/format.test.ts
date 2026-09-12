@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { ageFromBirthday, formatDate, formatShortDate, formatTime } from './format'
+import {
+  ageFromBirthday,
+  calendarDateParts,
+  formatDate,
+  formatShortDate,
+  formatTime,
+  todayInTimeZone,
+} from './format'
 
 describe('date formatting', () => {
   it('formats a Japanese date with its weekday', () => {
@@ -17,16 +24,24 @@ describe('date formatting', () => {
   })
 })
 
-describe('ageFromBirthday at the demo date of September 12, 2026', () => {
+describe('Tokyo calendar dates', () => {
+  it('uses the configured timezone instead of the host timezone', () => {
+    const instant = new Date('2026-09-11T15:30:00.000Z')
+    expect(todayInTimeZone(instant)).toBe('2026-09-12')
+    expect(calendarDateParts('2026-01-02')).toEqual({ year: 2026, month: 1, day: 2 })
+  })
+})
+
+describe('ageFromBirthday', () => {
   it('increments the year on the birthday', () => {
-    expect(ageFromBirthday('2023-09-12')).toBe('3歳0か月')
+    expect(ageFromBirthday('2023-09-12', '2026-09-12')).toBe('3歳0か月')
   })
 
   it('keeps the previous age before the birthday', () => {
-    expect(ageFromBirthday('2023-09-13')).toBe('2歳11か月')
+    expect(ageFromBirthday('2023-09-13', '2026-09-12')).toBe('2歳11か月')
   })
 
   it('counts completed months across a year boundary', () => {
-    expect(ageFromBirthday('2023-12-13')).toBe('2歳8か月')
+    expect(ageFromBirthday('2023-12-13', '2026-09-12')).toBe('2歳8か月')
   })
 })

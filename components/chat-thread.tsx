@@ -7,16 +7,8 @@ import { useStore } from '@/lib/store'
 import type { Role } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-export function ChatThread({
-  childId,
-  role,
-  senderName,
-}: {
-  childId: string
-  role: Role
-  senderName: string
-}) {
-  const { messages, addMessage } = useStore()
+export function ChatThread({ childId, role }: { childId: string; role: Role }) {
+  const { currentUser, messages, addMessage } = useStore()
   const [text, setText] = useState('')
   const composingRef = useRef(false)
   const endRef = useRef<HTMLDivElement>(null)
@@ -43,10 +35,7 @@ export function ChatThread({
       if (!value) return
       await addMessage({
         childId,
-        sender: role,
-        senderName,
         text: value,
-        time: new Date().toISOString(),
       })
       setText('')
     } catch (error) {
@@ -60,7 +49,7 @@ export function ChatThread({
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {thread.map((m) => {
-          const mine = m.sender === role
+          const mine = m.senderId ? m.senderId === currentUser?.id : m.sender === role
           return (
             <div key={m.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
               <div className={cn('max-w-[78%]', mine ? 'items-end' : 'items-start')}>

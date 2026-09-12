@@ -23,7 +23,7 @@ export default function ParentMessages() {
         </div>
       </div>
       <div className="min-h-0 flex-1 bg-muted/40">
-        <ChatThread childId={selectedChild.id} role="parent" senderName={currentUser.name} />
+        <ChatThread childId={selectedChild.id} role="parent" />
       </div>
     </div>
   )

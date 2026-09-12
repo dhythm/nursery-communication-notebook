@@ -14,6 +14,10 @@ const snapshot = {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('notebook server cache', () => {
+  it('polls for updates while a screen stays open', () => {
+    expect(notebookQuery('parent').refetchInterval).toBe(30_000)
+  })
+
   it('reuses fresh data for the same user and isolates another user', async () => {
     const fetchMock = vi.fn().mockImplementation(async () => Response.json(snapshot))
     vi.stubGlobal('fetch', fetchMock)
@@ -41,8 +45,9 @@ describe('notebook server cache', () => {
     fetchMock.mockImplementation(async () => Response.json(updatedSnapshot))
     const mutation = new MutationObserver(client, notebookMutation(client, 'parent'))
     await mutation.mutate({
+      commandId: 'update-child',
       type: 'updateChild',
-      payload: { id: 'child', patch: { notes: 'updated' } },
+      payload: { id: 'child', expectedVersion: 1, patch: { notes: 'updated' } },
     })
     await client.fetchQuery(notebookQuery('parent'))
     await client.fetchQuery(notebookQuery('teacher'))
@@ -64,10 +69,37 @@ describe('notebook server cache', () => {
     await client.fetchQuery(notebookQuery('parent'))
     const mutation = new MutationObserver(client, notebookMutation(client, 'parent'))
     await expect(
-      mutation.mutate({ type: 'updateChild', payload: { id: 'child', patch: {} } }),
+      mutation.mutate({
+        commandId: 'failed-update-child',
+        type: 'updateChild',
+        payload: { id: 'child', expectedVersion: 1, patch: {} },
+      }),
     ).rejects.toThrow('保存できませんでした')
     await client.fetchQuery(notebookQuery('parent'))
     expect(fetchMock).toHaveBeenCalledTimes(2)
     client.clear()
+  })
+
+  it('surfaces a conflict message returned by the server', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json(
+            { error: '他の利用者が先に更新しました。再読み込みして確認してください。' },
+            { status: 409 },
+          ),
+        ),
+    )
+    const client = new QueryClient()
+    const mutation = new MutationObserver(client, notebookMutation(client, 'teacher'))
+    await expect(
+      mutation.mutate({
+        commandId: 'stale-update',
+        type: 'updateChild',
+        payload: { id: 'child', expectedVersion: 1, patch: {} },
+      }),
+    ).rejects.toThrow('他の利用者が先に更新しました')
   })
 })

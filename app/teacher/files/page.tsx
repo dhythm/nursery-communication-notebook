@@ -93,8 +93,6 @@ export default function TeacherFiles() {
           addFile({
             ...file,
             facilityId: currentUser?.facilityId ?? 'f1',
-            date: '2026-09-12',
-            uploadedBy: currentUser?.name ?? '担任',
           })
         }
       />

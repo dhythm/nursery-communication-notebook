@@ -21,7 +21,7 @@ export function TeacherEntryDialog({
   onClose: () => void
   child: Child
 }) {
-  const { currentUser, addNotebookEntry } = useStore()
+  const { addNotebookEntry } = useStore()
   const [mood, setMood] = useState<Mood>('genki')
   const [temperature, setTemperature] = useState('36.5')
   const [meals, setMeals] = useState('')
@@ -39,9 +39,6 @@ export function TeacherEntryDialog({
     try {
       await addNotebookEntry({
         childId: child.id,
-        date: '2026-09-12',
-        author: 'teacher',
-        authorName: currentUser?.name ?? '担任',
         mood,
         temperature,
         meals: meals || '記入なし',
@@ -122,6 +119,8 @@ export function TeacherEntryDialog({
             <Input
               type="number"
               step="0.1"
+              min="34"
+              max="42"
               value={temperature}
               onChange={(e) => setTemperature(e.target.value)}
               className="w-28"

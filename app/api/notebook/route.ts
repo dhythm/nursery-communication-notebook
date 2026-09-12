@@ -42,7 +42,9 @@ export async function POST(request: Request) {
         ? 400
         : error instanceof Error && error.message === 'Forbidden'
           ? 403
-          : 503
+          : error instanceof Error && error.message === 'Conflict'
+            ? 409
+            : 503
     return Response.json(
       {
         error:
@@ -50,7 +52,9 @@ export async function POST(request: Request) {
             ? '入力内容を確認してください。'
             : status === 403
               ? 'Forbidden'
-              : '保存できませんでした。',
+              : status === 409
+                ? '他の利用者が先に更新しました。再読み込みして確認してください。'
+                : '保存できませんでした。',
       },
       { status, headers },
     )

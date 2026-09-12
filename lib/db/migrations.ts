@@ -10,6 +10,15 @@ const migrations = [
     // Temporary domain storage for the development demo; replace with domain tables.
     sql: 'CREATE TABLE app_record (id text PRIMARY KEY, kind text NOT NULL, data jsonb NOT NULL)',
   },
+  {
+    version: 3,
+    sql: `CREATE TABLE mutation_receipt (
+      actor_id text NOT NULL,
+      command_id text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (actor_id, command_id)
+    )`,
+  },
 ]
 
 export async function migrateDatabase(database: Database): Promise<void> {

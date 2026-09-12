@@ -70,7 +70,7 @@ export default function TeacherMessages() {
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
                       {last
-                        ? `${last.sender === 'parent' ? '' : 'あなた: '}${last.text}`
+                        ? `${last.senderId === currentUser.id ? 'あなた: ' : ''}${last.text}`
                         : 'メッセージなし'}
                     </p>
                   </div>
@@ -103,7 +103,7 @@ export default function TeacherMessages() {
           </div>
         </div>
         <div className="min-h-0 flex-1">
-          <ChatThread childId={selected.id} role="teacher" senderName={currentUser.name} />
+          <ChatThread childId={selected.id} role="teacher" />
         </div>
       </section>
     </div>

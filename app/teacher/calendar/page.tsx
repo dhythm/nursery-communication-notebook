@@ -9,12 +9,11 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
-import { eventColor, formatDate } from '@/lib/format'
+import { calendarDateParts, eventColor, formatDate, todayInTimeZone } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import type { CalendarEvent, EventType } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-const TODAY = '2026-09-12'
 const weekdays = ['日', '月', '火', '水', '木', '金', '土']
 const eventTypes: EventType[] = ['行事', '面談', '健診', '休園', '持ち物']
 
@@ -24,9 +23,13 @@ function toKey(y: number, m: number, d: number) {
 
 export default function TeacherCalendar() {
   const { currentUser, calendarEvents, addEvent } = useStore()
-  const [view, setView] = useState({ year: 2026, month: 8 }) // month 8 = September
-  const [selectedDate, setSelectedDate] = useState(TODAY)
-  const [open, setOpen] = useState(false)
+  const [today] = useState(() => todayInTimeZone())
+  const [view, setView] = useState(() => {
+    const { year, month } = calendarDateParts(today)
+    return { year, month: month - 1 }
+  })
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [addingDate, setAddingDate] = useState<string | null>(null)
 
   const events = useMemo(
     () => calendarEvents.filter((e) => e.facilityId === currentUser?.facilityId),
@@ -70,7 +73,10 @@ export default function TeacherCalendar() {
         title="カレンダー"
         subtitle="行事や面談などの予定を管理します"
         action={
-          <Button className="h-10 rounded-2xl font-bold" onClick={() => setOpen(true)}>
+          <Button
+            className="h-10 rounded-2xl font-bold"
+            onClick={() => setAddingDate(selectedDate)}
+          >
             <Plus className="size-4" />
             予定を追加
           </Button>
@@ -121,7 +127,7 @@ export default function TeacherCalendar() {
               if (day === null) return <div key={`empty-${i}`} />
               const key = toKey(view.year, view.month, day)
               const dayEvents = eventsByDate.get(key) ?? []
-              const isToday = key === TODAY
+              const isToday = key === today
               const isSelected = key === selectedDate
               const weekday = i % 7
               return (
@@ -196,7 +202,7 @@ export default function TeacherCalendar() {
           <Button
             variant="outline"
             className="mt-4 h-10 w-full rounded-2xl font-bold"
-            onClick={() => setOpen(true)}
+            onClick={() => setAddingDate(selectedDate)}
           >
             <Plus className="size-4" />
             この日に予定を追加
@@ -204,12 +210,14 @@ export default function TeacherCalendar() {
         </Card>
       </div>
 
-      <AddEventModal
-        open={open}
-        onClose={() => setOpen(false)}
-        defaultDate={selectedDate}
-        onAdd={(e) => addEvent({ ...e, facilityId: currentUser?.facilityId ?? 'f1' })}
-      />
+      {addingDate && (
+        <AddEventModal
+          open
+          onClose={() => setAddingDate(null)}
+          defaultDate={addingDate}
+          onAdd={(e) => addEvent({ ...e, facilityId: currentUser?.facilityId ?? 'f1' })}
+        />
+      )}
     </div>
   )
 }

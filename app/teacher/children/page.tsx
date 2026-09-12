@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ageFromBirthday, formatDate } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import type { Child } from '@/lib/types'
 
 export default function TeacherChildren() {
   const { currentUser, children, notebookEntries, updateChild } = useStore()
@@ -23,8 +24,8 @@ export default function TeacherChildren() {
     [children, currentUser],
   )
   const [selectedId, setSelectedId] = useState(myChildren[0]?.id ?? '')
-  const [entryOpen, setEntryOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
+  const [entryChild, setEntryChild] = useState<Child | null>(null)
+  const [editingChild, setEditingChild] = useState<Child | null>(null)
 
   const selected = myChildren.find((c) => c.id === selectedId) ?? myChildren[0]
   const entries = notebookEntries
@@ -85,7 +86,7 @@ export default function TeacherChildren() {
               <Button
                 variant="outline"
                 className="h-9 rounded-2xl"
-                onClick={() => setEditOpen(true)}
+                onClick={() => setEditingChild(selected)}
               >
                 <Pencil className="size-4" />
                 編集
@@ -119,7 +120,7 @@ export default function TeacherChildren() {
 
           <div className="flex items-center justify-between">
             <h3 className="font-display text-lg font-bold">連絡帳の記録</h3>
-            <Button className="h-10 rounded-2xl font-bold" onClick={() => setEntryOpen(true)}>
+            <Button className="h-10 rounded-2xl font-bold" onClick={() => setEntryChild(selected)}>
               <NotebookPen className="size-4" />
               連絡帳を記入
             </Button>
@@ -138,13 +139,17 @@ export default function TeacherChildren() {
         </div>
       </div>
 
-      <TeacherEntryDialog open={entryOpen} onClose={() => setEntryOpen(false)} child={selected} />
-      <EditChildModal
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        child={selected}
-        onSave={(patch) => updateChild(selected.id, patch)}
-      />
+      {entryChild && (
+        <TeacherEntryDialog open onClose={() => setEntryChild(null)} child={entryChild} />
+      )}
+      {editingChild && (
+        <EditChildModal
+          open
+          onClose={() => setEditingChild(null)}
+          child={editingChild}
+          onSave={(patch) => updateChild(editingChild.id, editingChild.version ?? 1, patch)}
+        />
+      )}
     </div>
   )
 }

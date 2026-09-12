@@ -26,6 +26,8 @@ export interface Child {
   avatarColor: string
   allergies: string[]
   notes: string
+  version?: number
+  updatedAt?: string
 }
 
 export type Mood = 'genki' | 'normal' | 'tired' | 'sick'
@@ -58,6 +60,7 @@ export interface Notice {
 export interface Message {
   id: string
   childId: string
+  senderId?: string
   sender: Role
   senderName: string
   text: string
@@ -98,10 +101,21 @@ export interface NotebookSnapshot {
   calendarEvents: CalendarEvent[]
 }
 
-export type NotebookCommand =
-  | { type: 'addNotebookEntry'; payload: Omit<NotebookEntry, 'id'> }
-  | { type: 'addMessage'; payload: Omit<Message, 'id'> }
-  | { type: 'addNotice'; payload: Omit<Notice, 'id'> }
-  | { type: 'addFile'; payload: Omit<SharedFile, 'id'> }
+export type NotebookAction =
+  | {
+      type: 'addNotebookEntry'
+      payload: Omit<NotebookEntry, 'id' | 'date' | 'author' | 'authorName'>
+    }
+  | {
+      type: 'addMessage'
+      payload: Omit<Message, 'id' | 'senderId' | 'sender' | 'senderName' | 'time'>
+    }
+  | { type: 'addNotice'; payload: Omit<Notice, 'id' | 'date'> }
+  | { type: 'addFile'; payload: Omit<SharedFile, 'id' | 'date' | 'uploadedBy'> }
   | { type: 'addEvent'; payload: Omit<CalendarEvent, 'id'> }
-  | { type: 'updateChild'; payload: { id: string; patch: Partial<Child> } }
+  | {
+      type: 'updateChild'
+      payload: { id: string; expectedVersion: number; patch: Partial<Child> }
+    }
+
+export type NotebookCommand = NotebookAction & { commandId: string }
