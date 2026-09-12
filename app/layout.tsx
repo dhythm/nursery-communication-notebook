@@ -1,3 +1,4 @@
+import { ClerkProvider } from '@clerk/nextjs'
 import { getCurrentUser } from '@/lib/auth/server'
 import { getRuntimeConfig } from '@/lib/runtime-config'
 import { Analytics } from '@vercel/analytics/next'
@@ -46,11 +47,16 @@ export default async function RootLayout({
       {children}
     </StoreProvider>
   )
+  const application = (
+    <>
+      {content}
+      {process.env.NODE_ENV === 'production' && <Analytics />}
+    </>
+  )
   return (
     <html lang="ja" className={`${mplus.variable} ${zenMaru.variable} bg-background`}>
       <body className="font-sans antialiased">
-        {content}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {authMode === 'clerk' ? <ClerkProvider>{application}</ClerkProvider> : application}
       </body>
     </html>
   )

@@ -103,7 +103,7 @@ const emptySnapshot: NotebookSnapshot = {
 interface StoreProps {
   children: ReactNode
   initialUser: User | null
-  authMode: 'skip'
+  authMode: 'skip' | 'clerk'
 }
 
 export function StoreProvider(props: StoreProps) {
@@ -115,7 +115,7 @@ export function StoreProvider(props: StoreProps) {
   )
 }
 
-function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) {
+function ApplicationStoreProvider({ children: nodes, initialUser, authMode }: StoreProps) {
   const [currentUser, setCurrentUser] = useState(initialUser)
   const client = useQueryClient()
   const router = useRouter()
@@ -138,6 +138,12 @@ function ApplicationStoreProvider({ children: nodes, initialUser }: StoreProps) 
     return user
   }
   const logout = async () => {
+    if (authMode === 'clerk') {
+      client.clear()
+      setCurrentUser(null)
+      router.push('/sign-out')
+      return
+    }
     const user = await clearSkipRole()
     setCurrentUser(user)
     client.clear()

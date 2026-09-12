@@ -1,6 +1,6 @@
 export interface RuntimeConfig {
   appEnv: 'development' | 'test' | 'production'
-  authMode: 'skip'
+  authMode: 'skip' | 'clerk'
   databaseProvider: 'postgres' | 'pglite'
   databaseUrl?: string
   pgliteDataDir: string
@@ -16,11 +16,20 @@ export function getRuntimeConfig(
     throw new Error('APP_ENV must be development, test, or production')
   }
   const authMode = environment.AUTH_MODE
-  if (authMode !== 'skip') {
-    throw new Error('AUTH_MODE must be skip; production authentication is not implemented yet')
+  if (authMode !== 'skip' && authMode !== 'clerk') {
+    throw new Error('AUTH_MODE must be skip or clerk')
   }
-  if (appEnv === 'production' || environment.VERCEL_ENV === 'production') {
+  const production = appEnv === 'production' || environment.VERCEL_ENV === 'production'
+  if (production && authMode === 'skip') {
     throw new Error('Authentication skip is forbidden in production')
+  }
+  if (
+    authMode === 'clerk' &&
+    (!environment.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || !environment.CLERK_SECRET_KEY)
+  ) {
+    throw new Error(
+      'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are required for Clerk authentication',
+    )
   }
   const databaseProvider = environment.DATABASE_PROVIDER ?? 'postgres'
   if (databaseProvider !== 'postgres' && databaseProvider !== 'pglite') {

@@ -35,10 +35,30 @@ describe('runtime configuration', () => {
     expect(() => getRuntimeConfig({})).toThrow(/AUTH_MODE/)
   })
 
-  it('fails closed for future auth providers until they are implemented', () => {
-    expect(() => getRuntimeConfig({ ...development, AUTH_MODE: 'clerk' })).toThrow(
-      /not implemented/,
-    )
+  it('requires Clerk keys for Clerk authentication', () => {
+    expect(() => getRuntimeConfig({ ...development, AUTH_MODE: 'clerk' })).toThrow(/CLERK/)
+    expect(
+      getRuntimeConfig({
+        ...development,
+        AUTH_MODE: 'clerk',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_example',
+        CLERK_SECRET_KEY: 'sk_test_example',
+      }),
+    ).toMatchObject({ authMode: 'clerk' })
+  })
+
+  it('allows production only with Clerk authentication and PostgreSQL', () => {
+    expect(
+      getRuntimeConfig({
+        APP_ENV: 'production',
+        AUTH_MODE: 'clerk',
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_example',
+        CLERK_SECRET_KEY: 'sk_live_example',
+        DATABASE_PROVIDER: 'postgres',
+        DATABASE_URL: 'postgresql://nursery:secret@db.example.com/nursery',
+        FILE_STORAGE_DIR: '/data/files',
+      }),
+    ).toMatchObject({ appEnv: 'production', authMode: 'clerk', databaseProvider: 'postgres' })
   })
 
   it('rejects invalid PostgreSQL URLs without exposing the secret', () => {
