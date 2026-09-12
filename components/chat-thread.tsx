@@ -39,9 +39,7 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
       ? `nursery:teacher-message-draft:${currentUser.id}:${childId}`
       : null
   const templatesKey =
-    role === 'teacher' && currentUser
-      ? `nursery:teacher-message-templates:${currentUser.id}`
-      : null
+    role === 'teacher' && currentUser ? `nursery:teacher-message-templates:${currentUser.id}` : null
   const [text, setText] = useState(() => readStoredText(draftKey))
   const [kind, setKind] = useState<MessageKind>('general')
   const [scheduledDate, setScheduledDate] = useState(todayInTimeZone())
@@ -301,9 +299,7 @@ export function ChatThread({ childId, role }: { childId: string; role: Role }) {
           </div>
         )}
         {role === 'teacher' && text.trim() && (
-          <p className="mb-1 text-right text-[0.65rem] text-muted-foreground">
-            下書き保存済み
-          </p>
+          <p className="mb-1 text-right text-[0.65rem] text-muted-foreground">下書き保存済み</p>
         )}
         <div className="flex items-end gap-2">
           <textarea
