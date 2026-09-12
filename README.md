@@ -13,7 +13,9 @@ Node.js 24 LTS（22.12以上）、pnpm 10.28.1を使用します。
 | 保護者 | `sakura@example.com`   | `DemoParent2026!`  |
 | 保育士 | `yamada@nijiiro.ed.jp` | `DemoTeacher2026!` |
 
-デモで追加・更新した情報は、mainブランチの更新時および保守作業で定期的に初期データへリセットされます。動作確認用の情報だけを入力し、個人情報や機密情報は入力しないでください。
+**共用のデモ環境です。実在する個人情報を入力しないでください。**
+
+デモで追加・更新した情報は、mainブランチの更新時および保守作業で定期的に初期データへリセットされます。動作確認用の架空の情報だけを入力し、機密情報も入力しないでください。
 
 ## アプリ画面
 
@@ -85,6 +87,7 @@ pnpm db:down        # コンテナー停止・削除（ボリュームは保持�
 | ------------------------- | ----------------------------------------------------- |
 | `APP_ENV`                 | `development` / `test`。省略時は安全側の `production` |
 | `AUTH_MODE`               | 開発用 `skip` / 本番用 `clerk` または `authjs`        |
+| `DEMO_MODE`               | `true` で全画面上部に共用デモ環境の注意帯を表示       |
 | `DATABASE_PROVIDER`       | `postgres` / `pglite`                                 |
 | `DATABASE_URL`            | PostgreSQL接続文字列。PGliteでは使用しない            |
 | `PGLITE_DATA_DIR`         | 既定 `.data/pglite`。`memory://` は単体テスト専用     |

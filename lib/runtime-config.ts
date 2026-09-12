@@ -1,6 +1,7 @@
 export interface RuntimeConfig {
   appEnv: 'development' | 'test' | 'production'
   authMode: AuthMode
+  demoMode: boolean
   databaseProvider: 'postgres' | 'pglite'
   databaseUrl?: string
   pgliteDataDir: string
@@ -43,6 +44,10 @@ export function getRuntimeConfig(
   if (authMode === 'authjs' && production && environment.AUTH_SECRET!.length < 32) {
     throw new Error('AUTH_SECRET must be at least 32 characters in production')
   }
+  const demoModeValue = environment.DEMO_MODE ?? 'false'
+  if (demoModeValue !== 'true' && demoModeValue !== 'false') {
+    throw new Error('DEMO_MODE must be true or false')
+  }
   const databaseProvider = environment.DATABASE_PROVIDER ?? 'postgres'
   if (databaseProvider !== 'postgres' && databaseProvider !== 'pglite') {
     throw new Error('DATABASE_PROVIDER must be postgres or pglite')
@@ -82,6 +87,7 @@ export function getRuntimeConfig(
   return {
     appEnv,
     authMode,
+    demoMode: demoModeValue === 'true',
     databaseProvider,
     databaseUrl: databaseProvider === 'postgres' ? databaseUrl : undefined,
     pgliteDataDir: environment.PGLITE_DATA_DIR || '.data/pglite',

@@ -19,6 +19,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev:agent --hostname 127.0.0.1 --port 3100',
     env: {
+      DEMO_MODE: 'true',
       NEXT_DIST_DIR: '.next-e2e',
       PGLITE_DATA_DIR: mkdtempSync(join(tmpdir(), 'nursery-e2e-')),
       FILE_STORAGE_DIR: mkdtempSync(join(tmpdir(), 'nursery-files-e2e-')),

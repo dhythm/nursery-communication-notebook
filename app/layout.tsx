@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { M_PLUS_Rounded_1c, Zen_Maru_Gothic } from 'next/font/google'
 import { StoreProvider } from '@/lib/store'
+import { DemoBanner } from '@/components/demo-banner'
 import './globals.css'
 
 const mplus = M_PLUS_Rounded_1c({
@@ -40,7 +41,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const { authMode } = getRuntimeConfig()
+  const { authMode, demoMode } = getRuntimeConfig()
   const currentUser = await getCurrentUser()
   const content = (
     <StoreProvider initialUser={currentUser} authMode={authMode}>
@@ -55,8 +56,13 @@ export default async function RootLayout({
   )
   return (
     <html lang="ja" className={`${mplus.variable} ${zenMaru.variable} bg-background`}>
-      <body className="font-sans antialiased">
-        {authMode === 'clerk' ? <ClerkProvider>{application}</ClerkProvider> : application}
+      <body className="h-dvh overflow-hidden font-sans antialiased">
+        <div className="flex h-full flex-col overflow-hidden">
+          {demoMode && <DemoBanner />}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {authMode === 'clerk' ? <ClerkProvider>{application}</ClerkProvider> : application}
+          </div>
+        </div>
       </body>
     </html>
   )

@@ -7,7 +7,7 @@ export function AppLoading() {
     <div
       role="status"
       aria-label="連絡帳をひらいています"
-      className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-background px-6"
+      className="relative flex min-h-full items-center justify-center overflow-hidden bg-background px-6"
     >
       <div
         aria-hidden="true"

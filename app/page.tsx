@@ -22,7 +22,7 @@ export default async function HomePage() {
   if (!userId) redirect('/sign-in')
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-muted/40 p-6">
+    <main className="flex min-h-full items-center justify-center bg-muted/40 p-6">
       <section className="w-full max-w-md space-y-5 rounded-3xl border bg-card p-6 text-center shadow-sm">
         <div className="flex justify-center">
           <BrandLogo />

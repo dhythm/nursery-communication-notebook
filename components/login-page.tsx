@@ -57,7 +57,7 @@ export default function LoginPage({ authMode }: { authMode: AuthMode }) {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col lg:flex-row">
+    <main className="flex min-h-full flex-col lg:flex-row">
       <section className="relative flex flex-col justify-center gap-6 bg-secondary px-6 py-10 lg:w-1/2 lg:px-14">
         <BrandLogo />
         <div className="space-y-3">

@@ -42,7 +42,7 @@ export function ParentShell({ children }: { children: ReactNode }) {
 
   return (
     <ParentProvider>
-      <div className="mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-background shadow-xl">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col overflow-hidden bg-background shadow-xl">
         <ChildHeader />
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
         <BottomNav />

@@ -27,7 +27,7 @@ export function ApplicationError({
   }, [error])
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-6 py-12">
+    <main className="flex min-h-full items-center justify-center bg-background px-6 py-12">
       <Card className="w-full max-w-md p-8 text-center">
         <div className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-secondary text-secondary-foreground">
           <TriangleAlert className="size-8" aria-hidden="true" />

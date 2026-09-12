@@ -3,6 +3,25 @@ import { expect, test } from '@playwright/test'
 const parentPath = '/nurseries/nijiiro/parent'
 const teacherPath = '/nurseries/nijiiro/teacher'
 
+test('the shared demo notice stays visible for parents and teachers', async ({ page }) => {
+  const demoNotice = page.getByRole('complementary', { name: 'デモ環境のお知らせ' })
+
+  await page.goto('/')
+  await expect(demoNotice).toContainText('共用デモ環境')
+  await expect(demoNotice).toContainText('実在する個人情報を入力しないでください')
+
+  await page.getByRole('button', { name: '保護者としてログイン', exact: true }).click()
+  await expect(page).toHaveURL(parentPath)
+  await expect(demoNotice).toBeVisible()
+
+  await page.goto(`${parentPath}/settings`)
+  await page.getByRole('button', { name: 'ログアウト', exact: true }).click()
+  await page.getByRole('button', { name: '保育士', exact: true }).click()
+  await page.getByRole('button', { name: '保育士としてログイン', exact: true }).click()
+  await expect(page).toHaveURL(teacherPath)
+  await expect(demoNotice).toBeVisible()
+})
+
 test('shows a friendly loading state while opening the notebook', async ({ page }) => {
   let releaseRequest!: () => void
   const requestBlocked = new Promise<void>((resolve) => {

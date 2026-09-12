@@ -20,7 +20,18 @@ describe('runtime configuration', () => {
       authMode: 'skip',
       databaseProvider: 'pglite',
       pgliteDataDir: '.data/pglite',
+      demoMode: false,
     })
+  })
+
+  it('enables the shared demo notice only with an explicit boolean value', () => {
+    expect(getRuntimeConfig({ ...development, DEMO_MODE: 'true' })).toMatchObject({
+      demoMode: true,
+    })
+    expect(getRuntimeConfig({ ...development, DEMO_MODE: 'false' })).toMatchObject({
+      demoMode: false,
+    })
+    expect(() => getRuntimeConfig({ ...development, DEMO_MODE: 'yes' })).toThrow(/DEMO_MODE/)
   })
 
   it('never silently falls back on invalid or missing production settings', () => {
