@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17.12-alpine
     environment:
       POSTGRES_USER: nursery
       POSTGRES_PASSWORD: nursery_local
